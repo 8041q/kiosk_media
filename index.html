@@ -1,0 +1,2160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>Exhibition Kiosk</title>
+  <style>
+
+/* ═══════════════════════════════════════════════════════════════
+   DESIGN TOKENS
+   ═══════════════════════════════════════════════════════════════ */
+:root {
+  --accent:        #00BFA5;
+  --accent-text:   #111111;
+  --bg:            #0e0e0e;
+  --surface:       #181818;
+  --surface2:      #242424;
+  --surface3:      #2e2e2e;
+  --text:          #f0f0f0;
+  --text-sub:      #a0a0a0;
+  --text-dim:      #606060;
+  --border:        #2c2c2c;
+  --radius-sm:     6px;
+  --radius:        10px;
+  --radius-lg:     14px;
+  --header-h:      80px;
+  --tile-min:      260px;
+  --tile-gap:      18px;
+  --page-pad:      32px;
+}
+
+body.light {
+  --bg:       #f2f2f2;
+  --surface:  #ffffff;
+  --surface2: #e8e8e8;
+  --surface3: #dcdcdc;
+  --text:     #111111;
+  --text-sub: #555555;
+  --text-dim: #999999;
+  --border:   #d0d0d0;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   RESET
+   ═══════════════════════════════════════════════════════════════ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  width: 100%; height: 100%;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+               "Helvetica Neue", Arial, sans-serif;
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+}
+
+:focus                { outline: none; }
+:focus-visible        { outline: none; box-shadow: 0 0 0 3px var(--accent) !important; }
+.kfocus               { outline: none; box-shadow: 0 0 0 3px var(--accent) !important; }
+
+::-webkit-scrollbar       { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--surface3); border-radius: 3px; }
+
+/* ═══════════════════════════════════════════════════════════════
+   SHARED ATOMS
+   ═══════════════════════════════════════════════════════════════ */
+.btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-family: inherit; font-size: 0.92rem; font-weight: 700;
+  cursor: pointer; border: none; border-radius: var(--radius);
+  padding: 0.6em 1.3em;
+  background: var(--accent); color: var(--accent-text);
+  letter-spacing: 0.01em;
+  transition: opacity 0.15s;
+  user-select: none; white-space: nowrap;
+}
+.btn:hover  { opacity: 0.82; }
+.btn:active { opacity: 0.60; }
+.btn:disabled { opacity: 0.35; cursor: default; pointer-events: none; }
+.btn-ghost   { background: transparent; color: var(--text-sub); border: 1px solid var(--border); }
+.btn-ghost:hover { background: var(--surface2); color: var(--text); }
+.btn-surface { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+.btn-surface:hover { background: var(--surface3); }
+.btn-full    { width: 100%; justify-content: center; }
+.btn-danger  { background: #c62828; color: #fff; }
+.btn-danger:hover { opacity: 0.85; }
+
+/* Spinner */
+.spin {
+  border: 3px solid var(--border); border-top-color: var(--accent);
+  border-radius: 50%; animation: spin 0.7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Shimmer (tile placeholder) */
+@keyframes shimmer {
+  from { background-position: 200% 0; }
+  to   { background-position: -200% 0; }
+}
+
+/* Tile entrance */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: none; }
+}
+.fade-up { animation: fadeUp 0.22s ease both; }
+
+/* Shake (wrong password) */
+@keyframes shake {
+  0%,100% { transform: translateX(0); }
+  18%   { transform: translateX(-9px); }
+  36%   { transform: translateX(9px); }
+  54%   { transform: translateX(-6px); }
+  72%   { transform: translateX(6px); }
+}
+.shake { animation: shake 0.38s ease; }
+
+/* Toggle switch */
+.toggle { position: relative; width: 50px; height: 28px; flex-shrink: 0; display: inline-block; }
+.toggle input { opacity: 0; width: 0; height: 0; }
+.toggle-track {
+  position: absolute; inset: 0; border-radius: 14px;
+  background: var(--surface3); cursor: pointer; transition: background 0.18s;
+}
+.toggle input:checked + .toggle-track { background: var(--accent); }
+.toggle-knob {
+  position: absolute; top: 4px; left: 4px;
+  width: 20px; height: 20px; border-radius: 50%;
+  background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+  pointer-events: none; transition: transform 0.18s;
+}
+.toggle input:checked ~ .toggle-knob { transform: translateX(22px); }
+
+/* Fields */
+.field { display: flex; flex-direction: column; gap: 6px; }
+.field label {
+  font-size: 0.75rem; font-weight: 700; color: var(--text-sub);
+  text-transform: uppercase; letter-spacing: 0.07em;
+}
+.field input[type="password"],
+.field input[type="text"],
+.field input[type="number"] {
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 12px 14px;
+  color: var(--text); font-size: 1rem; font-family: inherit; width: 100%;
+  transition: border-color 0.14s;
+}
+.field input:focus { border-color: var(--accent); }
+.inline-err { font-size: 0.82rem; color: #ff5252; min-height: 1.1em; }
+
+/* ═══════════════════════════════════════════════════════════════
+   SCREEN SYSTEM
+   ═══════════════════════════════════════════════════════════════ */
+.screen {
+  position: fixed; inset: 0;
+  display: none; flex-direction: column;
+  background: var(--bg);
+}
+.screen.active { display: flex; }
+
+/* ═══════════════════════════════════════════════════════════════
+   TOAST
+   ═══════════════════════════════════════════════════════════════ */
+#toast {
+  position: fixed; bottom: 32px; left: 50%;
+  transform: translateX(-50%) translateY(16px);
+  background: var(--surface); border: 1px solid var(--border); color: var(--text);
+  padding: 12px 28px; border-radius: 32px;
+  font-size: 0.9rem; font-weight: 600;
+  box-shadow: 0 4px 28px rgba(0,0,0,0.45);
+  opacity: 0; transition: opacity 0.25s, transform 0.25s;
+  z-index: 9999; pointer-events: none; white-space: nowrap;
+}
+#toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* ═══════════════════════════════════════════════════════════════
+   SCREEN — MAIN
+   ═══════════════════════════════════════════════════════════════ */
+#main-header {
+  flex-shrink: 0; height: var(--header-h);
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 var(--page-pad);
+  background: var(--surface); border-bottom: 1px solid var(--border);
+  gap: 20px;
+}
+
+#main-logo { max-height: 54px; width: auto; object-fit: contain; display: none; flex-shrink: 0; }
+
+#main-tagline {
+  font-size: 1rem; font-weight: 600; color: var(--text-sub);
+  letter-spacing: 0.025em; pointer-events: none; user-select: none;
+  white-space: nowrap; flex-shrink: 0;
+}
+
+/* Language switcher — visitor-facing, right of header */
+#lang-switcher { flex-shrink: 0; margin-left: auto; }
+#lang-select {
+  background: var(--surface2); border: 1px solid var(--border); color: var(--text);
+  border-radius: var(--radius); padding: 7px 14px;
+  font-size: 0.88rem; font-weight: 700; font-family: inherit;
+  cursor: pointer; transition: border-color 0.14s;
+  -webkit-appearance: auto; appearance: auto;
+}
+#lang-select:focus { border-color: var(--accent); outline: none; }
+
+/* Tile grid */
+#tile-grid {
+  flex: 1; overflow-y: auto;
+  padding: var(--page-pad);
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--tile-min)), 320px));
+  gap: var(--tile-gap);
+  justify-content: center;
+  align-content: center;
+}
+
+/* Tile card */
+.tile {
+  background: var(--surface); border: 2px solid var(--border);
+  border-radius: var(--radius-lg); overflow: hidden; cursor: pointer;
+  display: flex; flex-direction: column;
+  transition: border-color 0.15s, transform 0.15s, box-shadow 0.15s;
+  user-select: none; -webkit-user-select: none;
+}
+.tile:hover  { border-color: var(--accent); transform: translateY(-3px); box-shadow: 0 8px 32px rgba(0,0,0,0.35); }
+.tile.kfocus { border-color: var(--accent); transform: translateY(-3px); box-shadow: 0 8px 32px rgba(0,0,0,0.35); }
+
+.tile-thumb {
+  position: relative; width: 100%; aspect-ratio: 16 / 9;
+  background: var(--surface2); overflow: hidden;
+}
+/* Shimmer placeholder — active until image loads */
+.tile-loader {
+  position: absolute; inset: 0;
+  background: linear-gradient(
+    90deg,
+    var(--surface2) 25%,
+    var(--surface3) 50%,
+    var(--surface2) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.8s linear infinite;
+}
+.tile-thumb img {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  object-fit: cover; display: block;
+  opacity: 0; transition: opacity 0.3s;
+}
+.tile-thumb img.loaded { opacity: 1; }
+.tile-loader.hidden { display: none; }
+
+.tile-play-overlay {
+  position: absolute; inset: 0; display: flex;
+  align-items: center; justify-content: center;
+  background: rgba(0,0,0,0.28); opacity: 0; transition: opacity 0.15s;
+}
+.tile:hover  .tile-play-overlay,
+.tile.kfocus .tile-play-overlay { opacity: 1; }
+.tile-play-overlay svg { width: 60px; height: 60px; fill: #fff; filter: drop-shadow(0 2px 10px rgba(0,0,0,0.6)); }
+
+.tile-badge {
+  position: absolute; bottom: 8px; right: 8px;
+  background: rgba(0,0,0,0.72); color: #fff;
+  font-size: 0.74rem; font-weight: 700; letter-spacing: 0.02em;
+  padding: 2px 8px; border-radius: 4px; display: none;
+}
+
+.tile-meta { padding: 12px 16px 16px; }
+.tile-title {
+  font-size: 0.94rem; font-weight: 700; color: var(--text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 4px;
+}
+.tile-dur { font-size: 0.78rem; color: var(--text-sub); }
+
+/* Grid empty state */
+.grid-message {
+  grid-column: 1 / -1; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 14px;
+  padding: 100px 20px; text-align: center; color: var(--text-sub);
+}
+.grid-message svg { width: 56px; height: 56px; fill: var(--text-dim); }
+.grid-message h2  { font-size: 1.15rem; font-weight: 700; color: var(--text); }
+.grid-message p   { font-size: 0.88rem; max-width: 400px; line-height: 1.6; }
+
+/* Admin gear — subtle corner affordance */
+#admin-corner {
+  position: fixed; bottom: 22px; right: 22px; z-index: 30;
+  width: 40px; height: 40px; border-radius: 50%;
+  background: var(--surface2); border: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; opacity: 0.28; transition: opacity 0.2s; color: var(--text-sub);
+}
+#admin-corner:hover, #admin-corner:focus-visible { opacity: 1; }
+#admin-corner svg { width: 18px; height: 18px; fill: currentColor; pointer-events: none; }
+
+/* ═══════════════════════════════════════════════════════════════
+   SCREEN — PLAYER
+   ═══════════════════════════════════════════════════════════════ */
+#screen-player { background: #000; position: fixed; inset: 0; }
+
+#player-video {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  object-fit: contain; background: #000; display: block;
+}
+
+/* HUD overlay */
+#player-hud { position: absolute; inset: 0; pointer-events: none; }
+
+/* Fadeable HUD children — opacity controlled by .hud-faded on #player-hud */
+.hud-fadeable        { transition: opacity 0.5s ease, visibility 0.5s ease; opacity: 1; visibility: visible; }
+#player-hud.hud-faded .hud-fadeable { opacity: 0; visibility: hidden; }
+
+/* Back button */
+#player-back {
+  position: absolute; top: 24px; left: 24px;
+  pointer-events: all; display: inline-flex; align-items: center; justify-content: center;
+  width: 56px; height: 56px;
+  background: rgba(0,0,0,0.82); color: #fff;
+  border: 1px solid rgba(255,255,255,0.26); border-radius: 999px;
+  padding: 0; font-size: 0.95rem; font-weight: 700; font-family: inherit;
+  cursor: pointer; backdrop-filter: blur(6px); transition: background 0.15s, transform 0.15s;
+}
+#player-back:hover { background: rgba(0,0,0,0.96); }
+#player-back:active { transform: translateY(1px); }
+#player-back svg   { width: 24px; height: 24px; fill: #fff; flex-shrink: 0; }
+
+/* Logo watermark */
+#player-logo {
+  position: absolute; top: 24px; right: 24px;
+  max-height: 52px; width: auto; object-fit: contain;
+  opacity: 0.32; pointer-events: none; display: none;
+}
+
+/* Buffering spinner */
+#player-spinner {
+  position: absolute; top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none; display: none;
+}
+#player-spinner.active { display: block; }
+#player-spinner .spin  { width: 56px; height: 56px; }
+
+/* Error state */
+#player-error {
+  position: absolute; inset: 0; display: none;
+  align-items: center; justify-content: center; flex-direction: column; gap: 18px;
+  background: rgba(0,0,0,0.93); color: #fff; text-align: center; padding: 40px;
+  pointer-events: all;
+}
+#player-error.active { display: flex; }
+#player-error h2 { font-size: 1.15rem; font-weight: 800; }
+#player-error p  { font-size: 0.86rem; color: rgba(255,255,255,0.55); margin-top: 4px; }
+
+/* Bottom-left transport controls */
+#player-transport {
+  position: absolute; bottom: 36px; left: 32px;
+  pointer-events: all; display: flex; align-items: center; gap: 10px;
+}
+.player-transport-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 86px; min-height: 46px; padding: 0 16px;
+  border-radius: 999px; border: 1px solid rgba(255,255,255,0.18);
+  background: rgba(0,0,0,0.62); color: #fff;
+  font-family: inherit; font-size: 0.9rem; font-weight: 800;
+  cursor: pointer; backdrop-filter: blur(6px); transition: background 0.15s, transform 0.15s;
+}
+.player-transport-btn svg { width: 22px; height: 22px; fill: currentColor; }
+.player-transport-btn:hover { background: rgba(0,0,0,0.82); }
+.player-transport-btn:active { transform: translateY(1px); }
+.player-transport-btn.primary {
+  background: rgba(255,255,255,0.18);
+  min-width: 102px;
+}
+.player-transport-btn.icon-only {
+  min-width: 54px; width: 54px; padding: 0;
+}
+.player-transport-btn.primary.icon-only {
+  min-width: 62px; width: 62px;
+}
+
+#player-back:focus,
+#player-back:focus-visible,
+.player-transport-btn:focus,
+.player-transport-btn:focus-visible,
+#player-vol-icon:focus,
+#player-vol-icon:focus-visible {
+  outline: none;
+  box-shadow: none !important;
+}
+
+/* ── Volume overlay ── */
+#player-vol-wrap {
+  position: absolute; bottom: 36px; right: 32px;
+  pointer-events: all;
+  display: flex; align-items: center; gap: 14px;
+  background: rgba(0,0,0,0.62); border: 1px solid rgba(255,255,255,0.18);
+  border-radius: 40px; padding: 10px 20px;
+  backdrop-filter: blur(6px);
+  min-width: 260px;
+}
+#player-vol-icon {
+  background: none; border: none; cursor: pointer; padding: 0;
+  display: flex; align-items: center; color: #fff; flex-shrink: 0;
+}
+#player-vol-icon svg { width: 24px; height: 24px; fill: #fff; }
+#player-vol {
+  flex: 1; -webkit-appearance: none; appearance: none;
+  height: 6px; border-radius: 3px; cursor: pointer; outline: none;
+  background: linear-gradient(to right, var(--accent) 0%, var(--accent) var(--vol-pct, 100%), rgba(255,255,255,0.25) var(--vol-pct, 100%), rgba(255,255,255,0.25) 100%);
+}
+#player-vol::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 22px; height: 22px; border-radius: 50%;
+  background: #fff; box-shadow: 0 1px 6px rgba(0,0,0,0.5); cursor: pointer;
+}
+#player-vol::-moz-range-thumb {
+  width: 22px; height: 22px; border-radius: 50%; border: none;
+  background: #fff; box-shadow: 0 1px 6px rgba(0,0,0,0.5); cursor: pointer;
+}
+#player-vol-pct { color: #fff; font-size: 0.84rem; font-weight: 700; min-width: 38px; text-align: right; font-variant-numeric: tabular-nums; }
+
+@media (max-width: 900px) {
+  #player-transport {
+    left: 20px; bottom: 20px; flex-wrap: wrap;
+  }
+  #player-vol-wrap {
+    right: 20px; bottom: 20px; min-width: 220px;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   SCREEN — ADMIN
+   ═══════════════════════════════════════════════════════════════ */
+#screen-admin { flex-direction: row; overflow: hidden; }
+
+/* Auth gate */
+#admin-auth-wrap {
+  position: absolute; inset: 0; display: flex;
+  align-items: center; justify-content: center; padding: 40px 20px;
+  background: var(--bg); z-index: 10;
+}
+#admin-auth-wrap.hidden { display: none; }
+
+.auth-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); padding: 40px 36px 36px;
+  width: 100%; max-width: 400px;
+  display: flex; flex-direction: column; gap: 20px;
+}
+.auth-card h2  { font-size: 1.3rem; font-weight: 800; text-align: center; }
+.auth-card > p { font-size: 0.84rem; color: var(--text-sub); text-align: center; margin-top: -12px; }
+
+/* ── Admin sidebar ── */
+.admin-sidebar {
+  width: 260px; flex-shrink: 0;
+  display: flex; flex-direction: column;
+  background: var(--surface); border-right: 1px solid var(--border);
+  height: 100%;
+}
+
+.sidebar-header {
+  padding: 28px 24px 20px; border-bottom: 1px solid var(--border);
+}
+.sidebar-header h2 { font-size: 1.15rem; font-weight: 800; }
+.sidebar-header p  { font-size: 0.78rem; color: var(--text-sub); margin-top: 4px; }
+
+.sidebar-nav { flex: 1; display: flex; flex-direction: column; gap: 4px; padding: 14px 12px; overflow-y: auto; }
+
+.snav-btn {
+  display: flex; align-items: center; gap: 14px;
+  padding: 14px 18px; border-radius: var(--radius); border: none;
+  background: transparent; color: var(--text-sub);
+  font-family: inherit; font-size: 0.96rem; font-weight: 600;
+  cursor: pointer; text-align: left; transition: all 0.14s;
+  white-space: nowrap;
+}
+.snav-btn:hover  { background: var(--surface2); color: var(--text); }
+.snav-btn.active { background: var(--accent); color: var(--accent-text); }
+.snav-btn .nav-icon { font-size: 1.2rem; flex-shrink: 0; width: 26px; text-align: center; }
+
+.sidebar-footer {
+  padding: 16px; border-top: 1px solid var(--border);
+  display: flex; flex-direction: column; gap: 8px;
+}
+
+/* ── Admin main content ── */
+.admin-main {
+  flex: 1; overflow-y: auto;
+  padding: 44px 56px 80px;
+}
+
+/* Global scan button — top-right of admin content area */
+.admin-topbar {
+  display: flex; justify-content: flex-end;
+  margin-bottom: 20px;
+}
+
+.admin-section { display: none; }
+.admin-section.active { display: block; }
+
+.sec-title { font-size: 1.25rem; font-weight: 800; margin-bottom: 28px; color: var(--text); }
+
+.setting-group {
+  margin-bottom: 36px;
+}
+.setting-label {
+  font-size: 0.72rem; font-weight: 700; color: var(--text-dim);
+  text-transform: uppercase; letter-spacing: 0.09em;
+  padding-bottom: 10px; margin-bottom: 14px;
+  border-bottom: 1px solid var(--border); display: block;
+}
+
+/* Video admin grid */
+#video-admin-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 16px;
+}
+.vid-admin-card {
+  background: var(--surface); border: 2px solid var(--border);
+  border-radius: var(--radius-lg); overflow: hidden;
+  transition: border-color 0.15s;
+}
+.vac-thumb {
+  position: relative; width: 100%; aspect-ratio: 16 / 9;
+  background: var(--surface2); overflow: hidden;
+}
+.vac-thumb img {
+  width: 100%; height: 100%; object-fit: cover; display: block;
+  opacity: 0; transition: opacity 0.25s;
+}
+.vac-thumb img.loaded { opacity: 1; }
+.vac-thumb-shimmer {
+  position: absolute; inset: 0;
+  background: linear-gradient(90deg, var(--surface2) 25%, var(--surface3) 50%, var(--surface2) 75%);
+  background-size: 200% 100%; animation: shimmer 1.8s linear infinite;
+}
+.vac-body { padding: 14px 16px 16px; display: flex; flex-direction: column; gap: 12px; }
+.vac-title {
+  font-size: 0.92rem; font-weight: 700; color: var(--text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.vac-toggle-row { display: flex; align-items: center; gap: 12px; }
+.vac-toggle-lbl { font-size: 0.86rem; color: var(--text-sub); }
+.vac-empty {
+  padding: 32px 20px; color: var(--text-sub); font-size: 0.9rem;
+  text-align: center; background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); grid-column: 1 / -1;
+}
+
+/* Logo section */
+.logo-section { display: flex; flex-direction: column; gap: 14px; }
+#logo-preview-box {
+  width: 260px; height: 146px;
+  background-image:
+    linear-gradient(45deg, #3a3a3a 25%, transparent 25%),
+    linear-gradient(-45deg, #3a3a3a 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #3a3a3a 75%),
+    linear-gradient(-45deg, transparent 75%, #3a3a3a 75%);
+  background-size: 22px 22px;
+  background-position: 0 0, 0 11px, 11px -11px, -11px 0px;
+  background-color: #2a2a2a;
+  border-radius: var(--radius); border: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: center; overflow: hidden;
+  position: relative;
+}
+body.light #logo-preview-box {
+  background-color: #e0e0e0;
+  background-image:
+    linear-gradient(45deg, #c8c8c8 25%, transparent 25%),
+    linear-gradient(-45deg, #c8c8c8 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #c8c8c8 75%),
+    linear-gradient(-45deg, transparent 75%, #c8c8c8 75%);
+}
+#logo-prev-img {
+  max-width: 88%; max-height: 88%; width: auto; height: auto;
+  object-fit: contain; display: none;
+}
+#logo-prev-img.visible { display: block; }
+#logo-no-logo {
+  font-size: 0.82rem; color: var(--text-dim); text-align: center; padding: 10px;
+}
+.logo-hint { font-size: 0.82rem; color: var(--text-sub); line-height: 1.55; }
+.logo-hint code { background: var(--surface3); padding: 1px 5px; border-radius: 3px; font-size: 0.88em; }
+.logo-btns { display: flex; gap: 10px; flex-wrap: wrap; }
+.file-btn { position: relative; overflow: hidden; }
+.file-btn input[type="file"] {
+  position: absolute; inset: 0; opacity: 0; cursor: pointer; font-size: 0;
+}
+
+/* Colour picker */
+.color-row { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+#color-pick {
+  width: 52px; height: 40px; border: 1px solid var(--border);
+  border-radius: var(--radius-sm); background: var(--surface2); padding: 3px; cursor: pointer;
+}
+.color-hex   { font-size: 0.9rem; color: var(--text-sub); font-variant-numeric: tabular-nums; }
+.color-note  { font-size: 0.8rem; color: var(--text-dim); }
+
+/* Theme row */
+.toggle-row  { display: flex; align-items: center; gap: 14px; }
+.toggle-lbl  { font-size: 0.95rem; color: var(--text); }
+
+/* Vid admin language picker */
+#vid-lang-tabs {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 16px; margin-bottom: 16px; padding: 14px 16px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+}
+.vid-lang-copy { min-width: 0; }
+.vid-lang-copy strong {
+  display: block; font-size: 0.94rem; font-weight: 800; color: var(--text);
+}
+.vid-lang-copy span {
+  display: block; margin-top: 4px; font-size: 0.82rem; color: var(--text-sub);
+}
+.vid-lang-select {
+  min-width: 220px; max-width: 320px; width: 100%;
+  background: var(--surface2); border: 1px solid var(--border); color: var(--text);
+  border-radius: var(--radius-sm); padding: 11px 14px;
+  font-size: 0.92rem; font-weight: 700; font-family: inherit;
+}
+.vid-lang-select:focus { border-color: var(--accent); outline: none; }
+.vac-thumb-shimmer.hidden { display: none; }
+
+@media (max-width: 760px) {
+  #vid-lang-tabs {
+    flex-direction: column; align-items: stretch;
+  }
+  .vid-lang-select {
+    max-width: none;
+  }
+}
+
+/* Admin video card name input */
+.vac-name-input {
+  width: 100%; background: var(--surface2); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 8px 10px;
+  color: var(--text); font-size: 0.88rem; font-family: inherit;
+  transition: border-color 0.14s;
+}
+.vac-name-input:focus { border-color: var(--accent); outline: none; }
+
+/* Security section */
+.pw-fields { display: flex; flex-direction: column; gap: 12px; max-width: 400px; }
+
+  </style>
+</head>
+<body>
+
+<!-- ════════════════════════════════════════════════════════════════
+     SCREEN 1 — MAIN
+     ════════════════════════════════════════════════════════════════ -->
+<div id="screen-main" class="screen active">
+
+  <header id="main-header">
+    <img id="main-logo" alt="Logo" />
+    <div id="lang-switcher"></div>
+  </header>
+
+  <div id="tile-grid" role="grid" aria-label="Video library" tabindex="0"></div>
+
+</div>
+
+<!-- Admin gear corner button (only visible on main screen) -->
+<button id="admin-corner" aria-label="Admin" tabindex="0">
+  <svg viewBox="0 0 24 24">
+    <path d="M19.14 12.94c.04-.3.06-.61.06-.94s-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61
+      l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54
+      c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94
+      l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58
+      c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32
+      c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.04.24.24.41.48.41h3.84
+      c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22
+      l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6
+      s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/>
+  </svg>
+</button>
+
+
+<!-- ════════════════════════════════════════════════════════════════
+     SCREEN 2 — PLAYER
+     ════════════════════════════════════════════════════════════════ -->
+<div id="screen-player" class="screen" tabindex="-1">
+
+  <video id="player-video" preload="auto" playsinline disablePictureInPicture></video>
+
+  <div id="player-hud">
+
+    <button id="player-back" class="hud-fadeable" aria-label="Back">
+      <svg viewBox="0 0 24 24">
+        <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/>
+      </svg>
+    </button>
+
+    <img id="player-logo" class="hud-fadeable" alt="" aria-hidden="true" />
+
+    <!-- Volume control -->
+    <div id="player-vol-wrap" class="hud-fadeable">
+      <button id="player-vol-icon" aria-label="Toggle mute">
+        <svg id="vol-icon-svg" viewBox="0 0 24 24">
+          <path id="vol-icon-path" d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/>
+        </svg>
+      </button>
+      <input type="range" id="player-vol" min="0" max="1" step="0.01" value="1" style="--vol-pct:100%" />
+      <span id="player-vol-pct">100%</span>
+    </div>
+
+    <div id="player-spinner"><div class="spin"></div></div>
+
+    <div id="player-error">
+      <h2 data-i18n="errTitle">This video could not be played</h2>
+      <p data-i18n="errMsg">The file may be missing or use an unsupported codec.</p>
+      <button class="btn" id="player-err-btn" data-i18n="errBtn">Return to library</button>
+    </div>
+
+    <div id="player-transport" class="hud-fadeable">
+      <button class="player-transport-btn icon-only" id="player-rewind" aria-label="Go back 5 seconds">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 18V6l-8 6 8 6zm1-6 8 6V6l-8 6z"/></svg>
+      </button>
+      <button class="player-transport-btn primary icon-only" id="player-play-toggle" aria-label="Pause video"></button>
+      <button class="player-transport-btn icon-only" id="player-forward" aria-label="Go forward 5 seconds">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 18l8-6-8-6v12zm9 0 8-6-8-6v12z"/></svg>
+      </button>
+    </div>
+
+  </div>
+</div>
+
+
+<!-- ════════════════════════════════════════════════════════════════
+     SCREEN 3 — ADMIN
+     ════════════════════════════════════════════════════════════════ -->
+<div id="screen-admin" class="screen">
+
+  <!-- Auth gate (shown first, overlays the sidebar) -->
+  <div id="admin-auth-wrap">
+    <div class="auth-card" id="auth-card">
+      <h2 data-i18n="adminTitle">Admin Access</h2>
+      <p>Enter your password to continue</p>
+      <div class="field">
+        <label for="auth-input" data-i18n="password">Password</label>
+        <input type="password" id="auth-input" autocomplete="off" placeholder="••••" />
+      </div>
+      <span class="inline-err" id="auth-err" aria-live="polite"></span>
+      <button class="btn btn-full" id="auth-btn" data-i18n="unlock">Unlock settings</button>
+      <button class="btn btn-ghost btn-full" id="auth-cancel">← <span data-i18n="back">Back</span></button>
+    </div>
+  </div>
+
+  <!-- Sidebar + content (shown after auth) -->
+  <div class="admin-sidebar" id="admin-sidebar">
+    <div class="sidebar-header">
+      <h2 data-i18n="adminTitle">Kiosk Settings</h2>
+    </div>
+    <nav class="sidebar-nav" id="sidebar-nav">
+      <button class="snav-btn active" data-sec="videos">
+        <span data-i18n="videos">Videos</span>
+      </button>
+      <button class="snav-btn" data-sec="appearance">
+        <span data-i18n="appearance">Appearance</span>
+      </button>
+      <button class="snav-btn" data-sec="security">
+        <span data-i18n="security">Security</span>
+      </button>
+    </nav>
+    <div class="sidebar-footer">
+      <button class="btn btn-full" id="panel-save" data-i18n="save">Save &amp; Return</button>
+      <button class="btn btn-ghost btn-full" id="panel-discard" data-i18n="discard">Discard</button>
+    </div>
+  </div>
+
+  <div class="admin-main" id="admin-main">
+
+    <!-- ── Global toolbar ── -->
+    <div class="admin-topbar">
+      <button class="btn btn-surface" id="scan-btn">Scan…</button>
+    </div>
+
+    <!-- ── Videos section ── -->
+    <div class="admin-section active" id="sec-videos">
+      <h2 class="sec-title" data-i18n="videos">Videos</h2>
+
+      <div class="setting-group">
+        <span class="setting-label" >Displayed Media</span>
+        <div id="vid-lang-tabs"></div>
+        <div id="video-admin-grid">
+          <div class="vac-empty" id="vac-empty">
+            No videos loaded. Use the <strong>Scan…</strong> button (top right) to scan the media folder.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Appearance section ── -->
+    <div class="admin-section" id="sec-appearance">
+      <h2 class="sec-title" data-i18n="appearance">Appearance</h2>
+
+      <!-- Logo -->
+      <div class="setting-group">
+        <span class="setting-label" data-i18n="logo">Logo</span>
+        <div class="logo-section">
+          <div id="logo-preview-box">
+            <img id="logo-prev-img" alt="Logo preview" />
+            <span id="logo-no-logo">No logo set</span>
+          </div>
+          <p class="logo-hint">
+            Auto-loaded from <code>assets/logo.png</code> (also tries <code>.jpg</code> and <code>.svg</code>).
+            Upload below to override.
+          </p>
+          <div class="logo-btns">
+            <label class="btn btn-surface file-btn">
+              Upload logo
+              <input type="file" id="logo-file" accept="image/*" />
+            </label>
+            <button class="btn btn-ghost" id="logo-remove" style="display:none;">Remove</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Accent colour -->
+      <div class="setting-group">
+        <span class="setting-label" data-i18n="accentColor">Accent Colour</span>
+        <div class="color-row">
+          <input type="color" id="color-pick" />
+          <span class="color-hex" id="color-hex">#00BFA5</span>
+          <span class="color-note">Applies to buttons &amp; focus rings — backgrounds stay neutral</span>
+        </div>
+      </div>
+
+      <!-- Theme -->
+      <div class="setting-group">
+        <span class="setting-label" data-i18n="theme">Theme</span>
+        <div class="toggle-row">
+          <label class="toggle">
+            <input type="checkbox" id="theme-chk" />
+            <div class="toggle-track"></div>
+            <div class="toggle-knob"></div>
+          </label>
+          <span class="toggle-lbl" id="theme-lbl">Dark</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Security section ── -->
+    <div class="admin-section" id="sec-security">
+      <h2 class="sec-title" data-i18n="security">Security</h2>
+
+      <div class="setting-group">
+        <span class="setting-label" data-i18n="changePw">Change Password</span>
+        <div class="pw-fields">
+          <div class="field">
+            <label for="pw1">New password</label>
+            <input type="password" id="pw1" autocomplete="new-password"
+                   placeholder="Leave blank to keep current" />
+          </div>
+          <div class="field">
+            <label for="pw2">Confirm password</label>
+            <input type="password" id="pw2" autocomplete="new-password"
+                   placeholder="Repeat new password" />
+          </div>
+          <span class="inline-err" id="pw-err" aria-live="polite"></span>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /.admin-main -->
+
+</div><!-- /#screen-admin -->
+
+
+<!-- Toast -->
+<div id="toast" role="status" aria-live="polite"></div>
+
+
+<script id="media-manifest-script" src="media/manifest.js"></script>
+<script>
+'use strict';
+
+/* ══════════════════════════════════════════════════════════════════
+   CONFIGURATION
+   ══════════════════════════════════════════════════════════════════ */
+
+const DEFAULT_PASSWORD = '1234';
+const DEFAULT_ACCENT   = '#00BFA5';
+const IDLE_TIMEOUT_MS  = 3 * 60 * 1000;   // 3 minutes
+const HUD_FADE_MS      = 1500;             // 1.5 seconds of inactivity → fade HUD
+const SEEK_STEP_SECONDS = 5;
+
+const LANGUAGES = [
+  { code: 'en', label: 'English',   folder: 'en'    },
+  { code: 'pt', label: 'Português', folder: 'pt-pt' },
+  { code: 'es', label: 'Español',   folder: 'sp'    },
+  { code: 'fr', label: 'Français',  folder: 'fr'    },
+  { code: 'zh', label: '中文',       folder: 'zh'    },
+];
+
+const UI_STRINGS = {
+  en: {
+    tagline:'Select a video to watch', back:'Back', adminTitle:'Kiosk Settings',
+    unlock:'Unlock settings', save:'Save & Return', discard:'Discard',
+    password:'Password', wrongPw:'Incorrect password — try again.', saved:'Settings saved',
+    videos:'Videos', appearance:'Appearance', language:'Language', security:'Security',
+    selectAll:'Select all', deselectAll:'Deselect all', scanFolder:'Scan folder\u2026',
+    logo:'Logo', accentColor:'Accent Colour', theme:'Theme', dark:'Dark', light:'Light',
+    changePw:'Change Password', volume:'Volume', noVideos:'No videos to display',
+    errTitle:'Cannot play this video', errMsg:'File missing or codec not supported.', errBtn:'Return to library',
+    showOnScreen:'Show on screen',
+  },
+  pt: {
+    tagline:'Selecione um vídeo para assistir', back:'Voltar', adminTitle:'Configurações',
+    unlock:'Desbloquear', save:'Salvar e Retornar', discard:'Descartar',
+    password:'Senha', wrongPw:'Senha incorreta — tente novamente.', saved:'Configurações salvas',
+    videos:'Vídeos', appearance:'Aparência', language:'Idioma', security:'Segurança',
+    selectAll:'Selecionar todos', deselectAll:'Desmarcar todos', scanFolder:'Escanear pasta\u2026',
+    logo:'Logotipo', accentColor:'Cor de Destaque', theme:'Tema', dark:'Escuro', light:'Claro',
+    changePw:'Alterar Senha', volume:'Volume', noVideos:'Nenhum vídeo para exibir',
+    errTitle:'Não foi possível reproduzir', errMsg:'Arquivo ausente ou codec não suportado.', errBtn:'Voltar à biblioteca',
+    showOnScreen:'Exibir na tela',
+  },
+  es: {
+    tagline:'Selecciona un video para ver', back:'Volver', adminTitle:'Configuración',
+    unlock:'Desbloquear', save:'Guardar y Regresar', discard:'Descartar',
+    password:'Contraseña', wrongPw:'Contraseña incorrecta — inténtalo de nuevo.', saved:'Configuración guardada',
+    videos:'Videos', appearance:'Apariencia', language:'Idioma', security:'Seguridad',
+    selectAll:'Seleccionar todo', deselectAll:'Deseleccionar todo', scanFolder:'Escanear carpeta\u2026',
+    logo:'Logotipo', accentColor:'Color de Acento', theme:'Tema', dark:'Oscuro', light:'Claro',
+    changePw:'Cambiar Contraseña', volume:'Volumen', noVideos:'No hay videos',
+    errTitle:'No se puede reproducir', errMsg:'Archivo no encontrado o códec no compatible.', errBtn:'Volver a la biblioteca',
+    showOnScreen:'Mostrar en pantalla',
+  },
+  fr: {
+    tagline:'Sélectionnez une vidéo à regarder', back:'Retour', adminTitle:'Paramètres',
+    unlock:'Déverrouiller', save:'Enregistrer et Fermer', discard:'Annuler',
+    password:'Mot de passe', wrongPw:'Mot de passe incorrect — réessayez.', saved:'Paramètres enregistrés',
+    videos:'Vidéos', appearance:'Apparence', language:'Langue', security:'Sécurité',
+    selectAll:'Tout sélectionner', deselectAll:'Tout désélectionner', scanFolder:'Scanner le dossier\u2026',
+    logo:'Logo', accentColor:"Couleur d'Accentuation", theme:'Thème', dark:'Sombre', light:'Clair',
+    changePw:'Changer de Mot de Passe', volume:'Volume', noVideos:'Aucune vidéo à afficher',
+    errTitle:'Impossible de lire', errMsg:'Fichier manquant ou codec non supporté.', errBtn:'Retour à la bibliothèque',
+    showOnScreen:'Afficher à l\'écran',
+  },
+  zh: {
+    tagline:'选择视频观看', back:'返回', adminTitle:'展台设置',
+    unlock:'解锁', save:'保存并返回', discard:'放弃',
+    password:'密码', wrongPw:'密码错误，请重试。', saved:'设置已保存',
+    videos:'视频', appearance:'外观', language:'语言', security:'安全',
+    selectAll:'全选', deselectAll:'取消全选', scanFolder:'扫描文件夹\u2026',
+    logo:'标志', accentColor:'强调色', theme:'主题', dark:'深色', light:'浅色',
+    changePw:'修改密码', volume:'音量', noVideos:'没有可显示的视频',
+    errTitle:'无法播放视频', errMsg:'文件缺失或不支持的编解码器。', errBtn:'返回库',
+    showOnScreen:'在屏幕上显示',
+  },
+};
+
+/**
+ * VIDEO_LIST — fallback paths, keyed by language code.
+ * Used if the generated media manifest is missing.
+ */
+const VIDEO_LIST = {
+  en: ['media/en/video1.mp4', 'media/en/video2.mp4', 'media/en/video3.mp4'],
+  pt: ['media/pt-pt/video1.mp4', 'media/pt-pt/video2.mp4'],
+  es: ['media/sp/video1.mp4', 'media/sp/video2.mp4'],
+  fr: ['media/fr/video1.mp4', 'media/fr/video2.mp4'],
+  zh: ['media/zh/video1.mp4', 'media/zh/video2.mp4'],
+};
+
+
+/* ══════════════════════════════════════════════════════════════════
+   UTILITY
+   ══════════════════════════════════════════════════════════════════ */
+
+function $(id) { return document.getElementById(id); }
+
+function escHtml(s) {
+  return String(s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#039;');
+}
+
+function t(key) {
+  const lang = cfg.language || 'en';
+  return (UI_STRINGS[lang] && UI_STRINGS[lang][key]) || UI_STRINGS.en[key] || key;
+}
+
+// Map a language code to its actual media sub-folder name
+function langFolder(code) {
+  const l = LANGUAGES.find(x => x.code === code);
+  return l ? l.folder : code;
+}
+
+
+/* ══════════════════════════════════════════════════════════════════
+   STATE
+   ══════════════════════════════════════════════════════════════════ */
+
+const cfg = {
+  password:     DEFAULT_PASSWORD,
+  accent:       DEFAULT_ACCENT,
+  lightMode:    false,
+  logoSrc:      null,
+  selectedIds:  [],
+  videoVolumes: {},         // { videoId: 0.0–1.0 }
+  videoTitles:  {},         // { lang: { videoId: customTitle } }
+  language:     'en',
+};
+
+const catalog = { videos: [] };
+
+const ui = {
+  activeScreen: 'main',
+  lastTileIdx:  0,
+  rovingIdx:    0,
+  gridTiles:    [],
+  currentVideoId: null,
+};
+
+const draft = {
+  selectedIds:  [],
+  videoVolumes: {},
+  videoTitles:  {},
+  accent:       DEFAULT_ACCENT,
+  lightMode:    false,
+  logoSrc:      null,
+  password:     DEFAULT_PASSWORD,
+  language:     'en',
+};
+
+// In-memory handle to the scanned media root (can't persist File System handles)
+let mediaRootHandle = null;
+let allLangSources  = {};   // { [langCode]: [{name, src}][] } — populated on scan
+let adminVidLang    = 'en';
+
+
+/* ══════════════════════════════════════════════════════════════════
+   PERSISTENCE
+   ══════════════════════════════════════════════════════════════════ */
+
+const LS_KEY = 'kiosk_v3';
+
+function persistLoad() {
+  try {
+    const raw = localStorage.getItem(LS_KEY);
+    if (!raw) return;
+    const s = JSON.parse(raw);
+    if (s.password)                       cfg.password     = s.password;
+    if (s.accent)                         cfg.accent       = s.accent;
+    if (typeof s.lightMode === 'boolean') cfg.lightMode    = s.lightMode;
+    if (s.logoSrc)                        cfg.logoSrc      = s.logoSrc;
+    if (Array.isArray(s.selectedIds))     cfg.selectedIds  = s.selectedIds;
+    if (s.videoVolumes && typeof s.videoVolumes === 'object') cfg.videoVolumes = s.videoVolumes;
+    if (s.videoTitles  && typeof s.videoTitles  === 'object') cfg.videoTitles  = s.videoTitles;
+    if (s.language && UI_STRINGS[s.language]) cfg.language = s.language;
+  } catch (_) {}
+}
+
+function persistSave() {
+  const data = {
+    password: cfg.password, accent: cfg.accent, lightMode: cfg.lightMode,
+    logoSrc: cfg.logoSrc, selectedIds: cfg.selectedIds,
+    videoVolumes: cfg.videoVolumes, videoTitles: cfg.videoTitles, language: cfg.language,
+  };
+  try { localStorage.setItem(LS_KEY, JSON.stringify(data)); } catch (_) {
+    try { data.logoSrc = null; localStorage.setItem(LS_KEY, JSON.stringify(data)); } catch (_) {}
+  }
+}
+
+// Live-persist just volumes (called on slider input, no full save needed)
+function persistVolumes() {
+  try {
+    const raw = localStorage.getItem(LS_KEY);
+    const s   = raw ? JSON.parse(raw) : {};
+    s.videoVolumes = cfg.videoVolumes;
+    localStorage.setItem(LS_KEY, JSON.stringify(s));
+  } catch (_) {}
+}
+
+
+/* ══════════════════════════════════════════════════════════════════
+   COLOUR + THEME
+   ══════════════════════════════════════════════════════════════════ */
+
+function wcagL(c) {
+  const s = c / 255;
+  return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
+}
+function hexToRgb(hex) {
+  const f = hex.replace('#','').replace(/^(.)(.)(.)$/,'$1$1$2$2$3$3');
+  return { r: parseInt(f.slice(0,2),16), g: parseInt(f.slice(2,4),16), b: parseInt(f.slice(4,6),16) };
+}
+function applyAccent(hex) {
+  const { r, g, b } = hexToRgb(hex);
+  const L = 0.2126*wcagL(r) + 0.7152*wcagL(g) + 0.0722*wcagL(b);
+  document.documentElement.style.setProperty('--accent', hex);
+  document.documentElement.style.setProperty('--accent-text', L > 0.179 ? '#111111' : '#ffffff');
+}
+function applyTheme(light) { document.body.classList.toggle('light', light); }
+
+
+/* ══════════════════════════════════════════════════════════════════
+   I18N
+   ══════════════════════════════════════════════════════════════════ */
+
+function applyI18n() {
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.dataset.i18n;
+    el.textContent = t(key);
+  });
+  // Sync language dropdown
+  const langSel = $('lang-select');
+  if (langSel) langSel.value = cfg.language;
+  // html lang attribute
+  document.documentElement.lang = cfg.language;
+}
+
+
+/* ══════════════════════════════════════════════════════════════════
+   LOGO
+   ══════════════════════════════════════════════════════════════════ */
+
+function applyLogo(src) {
+  const mainLogo   = $('main-logo');
+  const playerLogo = $('player-logo');
+
+  const setAll = (url) => {
+    [mainLogo, playerLogo].forEach(img => { img.src = url; img.style.display = 'block'; });
+  };
+  const hideAll = () => {
+    [mainLogo, playerLogo].forEach(img => { img.src = ''; img.style.display = 'none'; });
+  };
+
+  if (src) { setAll(src); return; }
+
+  // Auto-discover from assets/ folder
+  hideAll();
+  const candidates = ['assets/logo.png', 'assets/logo.jpg', 'assets/logo.svg'];
+  let idx = 0;
+  const tryNext = () => {
+    if (idx >= candidates.length) return;
+    const probe = new Image();
+    probe.onload  = () => setAll(candidates[idx]);
+    probe.onerror = () => { idx++; tryNext(); };
+    probe.src     = candidates[idx];
+  };
+  tryNext();
+}
+
+
+/* ══════════════════════════════════════════════════════════════════
+   SCREEN ROUTER
+   ══════════════════════════════════════════════════════════════════ */
+
+function showScreen(name) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  const el = $('screen-' + name);
+  if (el) el.classList.add('active');
+  ui.activeScreen = name;
+  $('admin-corner').style.display = (name === 'main') ? '' : 'none';
+
+  if (name !== 'player') {
+    const v = $('player-video');
+    v.pause(); v.removeAttribute('src'); v.load();
+    $('player-error').classList.remove('active');
+    $('player-spinner').classList.remove('active');
+    clearIdleTimer();
+    clearHudTimer();
+  }
+}
+
+
+/* ══════════════════════════════════════════════════════════════════
+   TOAST
+   ══════════════════════════════════════════════════════════════════ */
+
+let _toastTimer = null;
+function showToast(msg, ms = 2800) {
+  const el = $('toast'); el.textContent = msg; el.classList.add('show');
+  if (_toastTimer) clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => el.classList.remove('show'), ms);
+}
+
+
+/* ══════════════════════════════════════════════════════════════════
+   VIDEO CATALOG
+   ══════════════════════════════════════════════════════════════════ */
+
+function videoId(name)    { return name.toLowerCase().replace(/[^a-z0-9.]/g,'_'); }
+function videoTitle(name) {
+  return name.replace(/\.[^/.]+$/,'').replace(/[_\-]+/g,' ').trim()
+    .replace(/\b\w/g, c => c.toUpperCase());
+}
+function formatDuration(s) {
+  if (!isFinite(s) || s <= 0) return '';
+  const h = Math.floor(s/3600), m = Math.floor((s%3600)/60), sec = Math.floor(s%60);
+  return h ? `${h}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`
+           : `${m}:${String(sec).padStart(2,'0')}`;
+}
+function makeRecord(name, src) {
+  return { id: videoId(name), src, name, title: videoTitle(name), duration: null };
+}
+
+function buildCatalog(sources) {
+  catalog.videos = sources.map(({ name, src }) => makeRecord(name, src));
+  const allIds   = new Set(catalog.videos.map(v => v.id));
+  if (cfg.selectedIds.length === 0) {
+    cfg.selectedIds = catalog.videos.map(v => v.id);
+  } else {
+    cfg.selectedIds = cfg.selectedIds.filter(id => allIds.has(id));
+    for (const v of catalog.videos) {
+      if (!cfg.selectedIds.includes(v.id)) cfg.selectedIds.push(v.id);
+    }
+  }
+}
+
+function loadFallbackCatalog() {
+  const paths = VIDEO_LIST[cfg.language] || VIDEO_LIST.en;
+  const sources = paths.map(p => ({ name: p.split('/').pop(), src: p }));
+  buildCatalog(sources);
+}
+
+const MEDIA_MANIFEST_SRC = 'media/manifest.js';
+const MEDIA_MANIFEST_GLOBAL = 'KIOSK_MEDIA_MANIFEST';
+
+function makeSourcesFromPaths(paths) {
+  return paths
+    .filter(path => typeof path === 'string' && path.trim())
+    .map(path => ({ name: decodeURIComponent(path.split('/').pop()), src: path }));
+}
+
+function applyMediaManifest(manifest) {
+  allLangSources = {};
+  if (!manifest || typeof manifest !== 'object') return false;
+
+  LANGUAGES.forEach(({ code }) => {
+    const sources = makeSourcesFromPaths(manifest[code] || []);
+    if (sources.length > 0) allLangSources[code] = sources;
+  });
+
+  return Object.keys(allLangSources).length > 0;
+}
+
+function loadInitialManifest() {
+  return applyMediaManifest(window[MEDIA_MANIFEST_GLOBAL]);
+}
+
+function reloadMediaManifest() {
+  return new Promise(resolve => {
+    const existing = $('media-manifest-script');
+    if (existing) existing.remove();
+
+    window[MEDIA_MANIFEST_GLOBAL] = null;
+
+    const script = document.createElement('script');
+    script.id = 'media-manifest-script';
+    script.src = `${MEDIA_MANIFEST_SRC}?v=${Date.now()}`;
+    script.onload = () => resolve(applyMediaManifest(window[MEDIA_MANIFEST_GLOBAL]));
+    script.onerror = () => {
+      allLangSources = {};
+      resolve(false);
+    };
+    document.head.appendChild(script);
+  });
+}
+
+async function scanAllLanguages() {
+  return await reloadMediaManifest();
+}
+
+
+/* ══════════════════════════════════════════════════════════════════
+   METADATA — thumbnail + duration (3 concurrent)
+   ══════════════════════════════════════════════════════════════════ */
+
+const CONCURRENCY   = 3;
+let   activeProbes  = 0;
+const metaQueue     = [];
+const thumbCache    = new Map();
+const durCache      = new Map();
+
+function queueMeta(record, onThumb, onDuration) {
+  metaQueue.push({ record, onThumb, onDuration }); drainMeta();
+}
+function drainMeta() {
+  while (activeProbes < CONCURRENCY && metaQueue.length > 0) {
+    const job = metaQueue.shift(); activeProbes++;
+    runMeta(job).finally(() => { activeProbes--; drainMeta(); });
+  }
+}
+function runMeta({ record, onThumb, onDuration }) {
+  return new Promise(resolve => {
+    if (thumbCache.has(record.src) && durCache.has(record.src)) {
+      onThumb(thumbCache.get(record.src));
+      onDuration(durCache.get(record.src));
+      resolve(); return;
+    }
+    const video  = document.createElement('video');
+    video.muted  = true; video.preload = 'auto';
+    const canvas = document.createElement('canvas');
+    canvas.width = 320; canvas.height = 180;
+    const ctx    = canvas.getContext('2d');
+    let done = false;
+    const finish = () => { if (!done) { done = true; resolve(); } };
+    const timer  = setTimeout(() => {
+      const fb = fallbackThumb(ctx, canvas);
+      thumbCache.set(record.src, fb); onThumb(fb); video.src = ''; finish();
+    }, 10000);
+    video.addEventListener('loadeddata', () => {
+      if (isFinite(video.duration)) { durCache.set(record.src, video.duration); onDuration(video.duration); }
+      video.currentTime = Math.min(2, (video.duration || 0) * 0.1);
+    }, { once: true });
+    video.addEventListener('seeked', () => {
+      clearTimeout(timer);
+      let url;
+      try { ctx.drawImage(video, 0, 0, 320, 180); url = canvas.toDataURL('image/jpeg', 0.72); }
+      catch (_) { url = fallbackThumb(ctx, canvas); }
+      thumbCache.set(record.src, url); onThumb(url); video.src = ''; finish();
+    }, { once: true });
+    video.addEventListener('error', () => {
+      clearTimeout(timer);
+      const fb = fallbackThumb(ctx, canvas); thumbCache.set(record.src, fb); onThumb(fb); finish();
+    }, { once: true });
+    video.src = record.src; video.load();
+  });
+}
+function fallbackThumb(ctx, canvas) {
+  const gradient = ctx.createLinearGradient(0, 0, 320, 180);
+  gradient.addColorStop(0, '#1a1a1a');
+  gradient.addColorStop(1, '#2a2a2a');
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, 320, 180);
+  ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(18, 18, 284, 144);
+  return canvas.toDataURL('image/jpeg', 0.72);
+}
+
+function bindThumbImage(imgEl, placeholderEl, url, hiddenClass = 'hidden') {
+  const reveal = () => {
+    imgEl.classList.add('loaded');
+    if (!placeholderEl) return;
+    if (hiddenClass) placeholderEl.classList.add(hiddenClass);
+    else placeholderEl.style.display = 'none';
+  };
+  const hidePlaceholder = () => {
+    if (!placeholderEl) return;
+    if (hiddenClass) placeholderEl.classList.add(hiddenClass);
+    else placeholderEl.style.display = 'none';
+  };
+
+  imgEl.onload = reveal;
+  imgEl.onerror = hidePlaceholder;
+  imgEl.src = url;
+
+  if (imgEl.complete) {
+    if (imgEl.naturalWidth > 0) reveal();
+    else hidePlaceholder();
+  }
+}
+
+function clearGridSelection(startIdx = 0) {
+  const safeIdx = Math.max(0, Math.min(startIdx, ui.gridTiles.length - 1));
+  ui.gridTiles.forEach((tile, idx) => {
+    tile.tabIndex = idx === safeIdx ? 0 : -1;
+    tile.classList.remove('kfocus');
+  });
+  ui.rovingIdx = safeIdx;
+}
+
+function hasGridSelection() {
+  return ui.gridTiles.some(tile => tile.classList.contains('kfocus'));
+}
+
+
+/* ══════════════════════════════════════════════════════════════════
+   MAIN SCREEN — render
+   ══════════════════════════════════════════════════════════════════ */
+
+function renderMainScreen() {
+  const grid = $('tile-grid');
+  const hadSelection = hasGridSelection();
+  grid.innerHTML = ''; ui.gridTiles = []; rovingReset();
+
+  const visible = catalog.videos.filter(v => cfg.selectedIds.includes(v.id));
+
+  if (visible.length === 0) {
+    grid.innerHTML = `
+      <div class="grid-message">
+        <svg viewBox="0 0 24 24"><path d="M18 4l2 4h-3l-2-4h-2l2 4h-3l-2-4H8l2 4H7L5
+          4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V4h-4z"/></svg>
+        <h2>${escHtml(t('noVideos'))}</h2>
+        <p>Open admin settings to configure your video library.</p>
+      </div>`;
+    return;
+  }
+
+  visible.forEach((video, idx) => {
+    const tile = document.createElement('div');
+    tile.className   = 'tile fade-up';
+    tile.style.animationDelay = `${idx * 28}ms`;
+    tile.tabIndex    = idx === 0 ? 0 : -1;
+    tile.dataset.idx = String(idx);
+    tile.setAttribute('role', 'gridcell');
+    tile.setAttribute('aria-label', video.title);
+
+    const displayTitle = (cfg.videoTitles?.[cfg.language]?.[video.id]) || video.title;
+    tile.innerHTML = `
+      <div class="tile-thumb">
+        <div class="tile-loader"></div>
+        <img alt="" />
+        <div class="tile-play-overlay">
+          <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+        </div>
+        <span class="tile-badge"></span>
+      </div>
+      <div class="tile-meta">
+        <div class="tile-title">${escHtml(displayTitle)}</div>
+        <div class="tile-dur"></div>
+      </div>`;
+
+    const activate = () => openVideo(video, idx);
+    tile.addEventListener('click', activate);
+    tile.addEventListener('keydown', e => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); activate(); }
+    });
+    tile.addEventListener('focus', () => rovingSync(idx));
+    grid.appendChild(tile); ui.gridTiles.push(tile);
+
+    const imgEl  = tile.querySelector('img');
+    const loader = tile.querySelector('.tile-loader');
+    const badge  = tile.querySelector('.tile-badge');
+    const durEl  = tile.querySelector('.tile-dur');
+
+    queueMeta(video,
+      url => bindThumbImage(imgEl, loader, url),
+      secs => {
+        const s = formatDuration(secs);
+        if (s) { badge.textContent = s; badge.style.display = ''; durEl.textContent = s; }
+      }
+    );
+  });
+
+  initRovingFocus(grid);
+  const restore = Math.min(ui.lastTileIdx, ui.gridTiles.length - 1);
+  if (hadSelection && restore >= 0) {
+    rovingGoto(restore, false);
+  } else {
+    clearGridSelection(restore >= 0 ? restore : 0);
+    if (ui.activeScreen === 'main') grid.focus({ preventScroll: true });
+  }
+}
+
+
+/* ══════════════════════════════════════════════════════════════════
+   ROVING FOCUS
+   ══════════════════════════════════════════════════════════════════ */
+
+let _rovGrid = null, _rovHandler = null;
+
+function rovingReset() {
+  if (_rovGrid && _rovHandler) _rovGrid.removeEventListener('keydown', _rovHandler);
+  _rovGrid = null; _rovHandler = null; ui.rovingIdx = 0;
+}
+function rovingSync(idx) {
+  ui.gridTiles.forEach((t, i) => {
+    t.tabIndex = (i === idx) ? 0 : -1;
+    t.classList.toggle('kfocus', i === idx);
+  });
+  ui.rovingIdx = idx;
+}
+function rovingGoto(idx, scroll = true) {
+  rovingSync(idx);
+  if (scroll && ui.gridTiles[idx]) ui.gridTiles[idx].focus({ preventScroll: false });
+}
+function measureGridCols() {
+  const tiles = ui.gridTiles; if (tiles.length < 2) return 1;
+  const top0  = tiles[0].getBoundingClientRect().top;
+  let cols = 1;
+  for (let i = 1; i < tiles.length; i++) {
+    if (Math.abs(tiles[i].getBoundingClientRect().top - top0) < 5) cols++;
+    else break;
+  }
+  return Math.max(1, cols);
+}
+function initRovingFocus(grid) {
+  _rovGrid = grid;
+  _rovHandler = e => {
+    const tiles = ui.gridTiles; if (!tiles.length) return;
+    if (!hasGridSelection()) {
+      const startIdx = Math.min(ui.rovingIdx, tiles.length - 1);
+      if (e.key === 'Enter' || e.key === ' ' || e.key === 'NumpadEnter') {
+        e.preventDefault();
+        rovingGoto(startIdx);
+        tiles[startIdx]?.click();
+        return;
+      }
+      if (['ArrowRight', 'ArrowLeft', 'ArrowDown', 'ArrowUp'].includes(e.key)) {
+        e.preventDefault();
+        rovingGoto(startIdx);
+        return;
+      }
+    }
+    const cols  = measureGridCols(); let next = ui.rovingIdx;
+    if      (e.key === 'ArrowRight') next = Math.min(ui.rovingIdx + 1,    tiles.length - 1);
+    else if (e.key === 'ArrowLeft')  next = Math.max(ui.rovingIdx - 1,    0);
+    else if (e.key === 'ArrowDown')  next = Math.min(ui.rovingIdx + cols, tiles.length - 1);
+    else if (e.key === 'ArrowUp')    next = Math.max(ui.rovingIdx - cols, 0);
+    else if (e.key === 'Enter' || e.key === ' ' || e.key === 'NumpadEnter') {
+      e.preventDefault();
+      tiles[ui.rovingIdx]?.click();
+      return;
+    }
+    else return;
+    e.preventDefault(); if (next !== ui.rovingIdx) rovingGoto(next);
+  };
+  grid.addEventListener('keydown', _rovHandler);
+}
+
+
+/* ══════════════════════════════════════════════════════════════════
+   LANGUAGE
+   ══════════════════════════════════════════════════════════════════ */
+
+function buildLangSwitcher() {
+  const sw = $('lang-switcher'); sw.innerHTML = '';
+  const sel = document.createElement('select');
+  sel.id = 'lang-select';
+  sel.setAttribute('aria-label', 'Language');
+  LANGUAGES.forEach(({ code, label }) => {
+    const opt = document.createElement('option');
+    opt.value = code; opt.textContent = label;
+    if (code === cfg.language) opt.selected = true;
+    sel.appendChild(opt);
+  });
+  sel.addEventListener('change', () => applyLanguage(sel.value, true));
+  sw.appendChild(sel);
+}
+
+function buildAdminLangGrid() {}
+
+async function applyLanguage(code, persist) {
+  cfg.language = code;
+  if (persist) persistSave();
+  applyI18n();
+
+  if (allLangSources[code]?.length) {
+    cfg.selectedIds = [];
+    buildCatalog(allLangSources[code]);
+  } else {
+    loadFallbackCatalog();
+  }
+
+  renderMainScreen();
+}
+
+function buildVidLangTabs() {
+  const tabs = $('vid-lang-tabs'); if (!tabs) return;
+  const options = LANGUAGES.map(({ code, label }) => {
+    const count = allLangSources[code]?.length || 0;
+    const suffix = count ? ` (${count})` : '';
+    return `<option value="${code}" ${code === adminVidLang ? 'selected' : ''}>${escHtml(label + suffix)}</option>`;
+  }).join('');
+
+  tabs.innerHTML = `
+    <div class="vid-lang-copy">
+      <strong>Language library</strong>
+      <span>Choose which language folder you want to manage.</span>
+    </div>
+    <select class="vid-lang-select" id="vid-lang-select-admin" aria-label="Video language">
+      ${options}
+    </select>`;
+
+  $('vid-lang-select-admin').addEventListener('change', e => switchAdminVidLang(e.target.value));
+}
+
+async function switchAdminVidLang(lang) {
+  adminVidLang = lang;
+  const sel = $('vid-lang-select-admin');
+  if (sel) sel.value = lang;
+  await loadAdminLangCatalog(lang);
+  draft.selectedIds = [...cfg.selectedIds];
+  buildVideoAdminGrid();
+}
+
+async function loadAdminLangCatalog(lang) {
+  if (allLangSources[lang]?.length) {
+    cfg.selectedIds = [];
+    buildCatalog(allLangSources[lang]);
+    return;
+  }
+  const paths   = VIDEO_LIST[lang] || VIDEO_LIST.en;
+  const sources = paths.map(p => ({ name: p.split('/').pop(), src: p }));
+  buildCatalog(sources);
+}
+
+async function restoreAndRender() {
+  await loadAdminLangCatalog(cfg.language);
+  renderMainScreen();
+}
+
+
+/* ══════════════════════════════════════════════════════════════════
+   PLAYER — HUD FADE
+   ══════════════════════════════════════════════════════════════════ */
+
+let _hudTimer = null;
+
+function hudActivity() {
+  const hud = $('player-hud');
+  hud.classList.remove('hud-faded');
+  clearHudTimer();
+  // Only start fade countdown if video is playing
+  const v = $('player-video');
+  if (!v.paused && !v.ended) {
+    _hudTimer = setTimeout(() => hud.classList.add('hud-faded'), HUD_FADE_MS);
+  }
+}
+function clearHudTimer() {
+  if (_hudTimer) { clearTimeout(_hudTimer); _hudTimer = null; }
+}
+function startHudFadeCountdown() {
+  clearHudTimer();
+  _hudTimer = setTimeout(() => $('player-hud').classList.add('hud-faded'), HUD_FADE_MS);
+}
+
+
+/* ══════════════════════════════════════════════════════════════════
+   PLAYER — IDLE TIMER
+   ══════════════════════════════════════════════════════════════════ */
+
+let _idleTimer = null;
+
+function startIdleTimer() {
+  clearIdleTimer();
+  _idleTimer = setTimeout(leavePlayer, IDLE_TIMEOUT_MS);
+}
+function clearIdleTimer() {
+  if (_idleTimer) { clearTimeout(_idleTimer); _idleTimer = null; }
+}
+
+
+/* ══════════════════════════════════════════════════════════════════
+   PLAYER — VOLUME
+   ══════════════════════════════════════════════════════════════════ */
+
+function updateVolUI(value) {
+  const pct    = Math.round(value * 100);
+  const slider = $('player-vol');
+  slider.value = value;
+  slider.style.setProperty('--vol-pct', pct + '%');
+  $('player-vol-pct').textContent = pct + '%';
+
+  // Update icon: muted (0) vs low vs high
+  const path = $('vol-icon-path');
+  if (value === 0) {
+    path.setAttribute('d','M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z');
+  } else if (value < 0.5) {
+    path.setAttribute('d','M18.5 12c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM5 9v6h4l5 5V4L9 9H5z');
+  } else {
+    path.setAttribute('d','M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z');
+  }
+}
+
+function syncPlayerToggleUI() {
+  const paused = $('player-video').paused;
+  const label  = paused ? 'Play' : 'Pause';
+  const icon   = paused
+    ? '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>'
+    : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h4v14H7zm6 0h4v14h-4z"/></svg>';
+  const btn = $('player-play-toggle');
+  if (!btn) return;
+  btn.innerHTML = icon;
+  btn.setAttribute('aria-label', `${label} video`);
+}
+
+function togglePlayerPlayback() {
+  const v = $('player-video');
+  if (v.paused || v.ended) v.play().catch(() => {});
+  else v.pause();
+  hudActivity();
+  syncPlayerToggleUI();
+}
+
+function seekPlayerBy(delta) {
+  const v = $('player-video');
+  const maxTime = Number.isFinite(v.duration) ? v.duration : Math.max(v.currentTime + Math.abs(delta), 0);
+  v.currentTime = Math.max(0, Math.min(maxTime, v.currentTime + delta));
+  hudActivity();
+}
+
+function refocusPlayerSurface() {
+  requestAnimationFrame(() => $('screen-player').focus({ preventScroll: true }));
+}
+
+
+/* ══════════════════════════════════════════════════════════════════
+   VIDEO PLAYER — open + wire
+   ══════════════════════════════════════════════════════════════════ */
+
+function openVideo(record, tileIdx) {
+  ui.lastTileIdx  = tileIdx;
+  ui.currentVideoId = record.id;
+
+  const v = $('player-video');
+  $('player-error').classList.remove('active');
+  $('player-spinner').classList.add('active');
+  $('player-hud').classList.remove('hud-faded');
+
+  // Set volume from saved value
+  const vol = cfg.videoVolumes[record.id] ?? 1.0;
+  v.volume = Math.max(0, Math.min(1, vol));
+  updateVolUI(v.volume);
+
+  v.src = record.src;
+  showScreen('player');
+  refocusPlayerSurface();
+  syncPlayerToggleUI();
+  v.play().catch(() => {
+    $('player-spinner').classList.remove('active');
+    hudActivity(); // show HUD since autoplay was blocked
+    syncPlayerToggleUI();
+  });
+}
+
+(function wirePlayer() {
+  const v       = $('player-video');
+  const screen  = $('screen-player');
+
+  // ── PiP: block all paths ──
+  v.addEventListener('enterpictureinpicture', () => {
+    document.exitPictureInPicture().catch(() => {});
+  });
+  screen.addEventListener('contextmenu', e => e.preventDefault());
+
+  // ── Buffering states ──
+  v.addEventListener('canplay',  () => $('player-spinner').classList.remove('active'));
+  v.addEventListener('waiting',  () => $('player-spinner').classList.add('active'));
+  v.addEventListener('playing',  () => {
+    $('player-spinner').classList.remove('active');
+    clearIdleTimer();
+    startHudFadeCountdown();
+    syncPlayerToggleUI();
+  });
+  v.addEventListener('pause',    () => { hudActivity(); startIdleTimer(); syncPlayerToggleUI(); });
+  v.addEventListener('ended',    leavePlayer);
+  v.addEventListener('error',    () => {
+    $('player-spinner').classList.remove('active');
+    $('player-error').classList.add('active');
+    clearIdleTimer();
+  });
+
+  // ── HUD activity ──
+  screen.addEventListener('mousemove',  hudActivity, { passive: true });
+  screen.addEventListener('touchstart', hudActivity, { passive: true });
+
+  // ── Keyboard ──
+  screen.addEventListener('keydown', e => {
+    hudActivity();
+    switch (e.key) {
+      case 'Escape':
+      case 'BrowserBack':
+      case 'GoBack':
+        e.preventDefault(); leavePlayer(); break;
+      case ' ':
+      case 'Enter':
+      case 'NumpadEnter':
+      case 'MediaPlayPause':
+        e.preventDefault(); togglePlayerPlayback(); break;
+      case 'ArrowLeft':
+      case 'MediaRewind':
+        e.preventDefault(); seekPlayerBy(-SEEK_STEP_SECONDS); break;
+      case 'ArrowRight':
+      case 'MediaFastForward':
+        e.preventDefault(); seekPlayerBy(SEEK_STEP_SECONDS); break;
+      case 'ArrowUp':
+        e.preventDefault();
+        v.volume = Math.min(1, v.volume + 0.05);
+        updateVolUI(v.volume);
+        if (ui.currentVideoId) { cfg.videoVolumes[ui.currentVideoId] = v.volume; persistVolumes(); }
+        break;
+      case 'ArrowDown':
+        e.preventDefault();
+        v.volume = Math.max(0, v.volume - 0.05);
+        updateVolUI(v.volume);
+        if (ui.currentVideoId) { cfg.videoVolumes[ui.currentVideoId] = v.volume; persistVolumes(); }
+        break;
+    }
+  });
+
+  // ── Volume slider ──
+  $('player-vol').addEventListener('input', e => {
+    const val = parseFloat(e.target.value);
+    v.volume = val;
+    updateVolUI(val);
+    if (ui.currentVideoId) { cfg.videoVolumes[ui.currentVideoId] = val; persistVolumes(); }
+    hudActivity();
+  });
+
+  // ── Mute toggle ──
+  $('player-vol-icon').addEventListener('click', () => {
+    v.muted = !v.muted;
+    updateVolUI(v.muted ? 0 : v.volume);
+    hudActivity();
+    refocusPlayerSurface();
+  });
+
+  $('player-play-toggle').addEventListener('click', () => {
+    togglePlayerPlayback();
+    refocusPlayerSurface();
+  });
+  $('player-rewind').addEventListener('click', () => {
+    seekPlayerBy(-SEEK_STEP_SECONDS);
+    refocusPlayerSurface();
+  });
+  $('player-forward').addEventListener('click', () => {
+    seekPlayerBy(SEEK_STEP_SECONDS);
+    refocusPlayerSurface();
+  });
+
+  // ── Back / error buttons ──
+  $('player-back').addEventListener('click',    () => { leavePlayer(); refocusPlayerSurface(); });
+  $('player-err-btn').addEventListener('click', leavePlayer);
+})();
+
+function leavePlayer() {
+  clearIdleTimer(); clearHudTimer();
+  showScreen('main');
+  clearGridSelection(Math.min(ui.lastTileIdx, ui.gridTiles.length - 1));
+  $('tile-grid').focus({ preventScroll: true });
+}
+
+
+/* ══════════════════════════════════════════════════════════════════
+   ADMIN — AUTH
+   ══════════════════════════════════════════════════════════════════ */
+
+function openAdmin() {
+  $('admin-auth-wrap').classList.remove('hidden');
+  $('auth-input').value = ''; $('auth-err').textContent = '';
+  showScreen('admin');
+  setTimeout(() => $('auth-input').focus(), 60);
+}
+
+function checkAuth() {
+  if ($('auth-input').value === cfg.password) {
+    $('admin-auth-wrap').classList.add('hidden');
+    openAdminPanel();
+  } else {
+    $('auth-err').textContent = t('wrongPw');
+    $('auth-input').value = ''; $('auth-input').focus();
+    const card = $('auth-card');
+    card.classList.remove('shake'); void card.offsetWidth; card.classList.add('shake');
+  }
+}
+
+$('auth-btn').addEventListener('click', checkAuth);
+$('auth-input').addEventListener('keydown', e => { if (e.key === 'Enter') checkAuth(); });
+$('auth-cancel').addEventListener('click', () => showScreen('main'));
+
+
+/* ══════════════════════════════════════════════════════════════════
+   ADMIN — SIDEBAR NAVIGATION
+   ══════════════════════════════════════════════════════════════════ */
+
+function adminNavTo(secId) {
+  document.querySelectorAll('.snav-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.sec === secId);
+  });
+  document.querySelectorAll('.admin-section').forEach(s => {
+    s.classList.toggle('active', s.id === 'sec-' + secId);
+  });
+}
+
+document.querySelectorAll('.snav-btn').forEach(btn => {
+  btn.addEventListener('click', () => adminNavTo(btn.dataset.sec));
+});
+
+
+/* ══════════════════════════════════════════════════════════════════
+   ADMIN — PANEL
+   ══════════════════════════════════════════════════════════════════ */
+
+function openAdminPanel() {
+  // Copy cfg → draft
+  draft.selectedIds  = [...cfg.selectedIds];
+  draft.videoVolumes = { ...cfg.videoVolumes };
+  draft.videoTitles  = JSON.parse(JSON.stringify(cfg.videoTitles || {}));
+  draft.accent       = cfg.accent;
+  draft.lightMode    = cfg.lightMode;
+  draft.logoSrc      = cfg.logoSrc;
+  draft.password     = cfg.password;
+  draft.language     = cfg.language;
+
+  adminVidLang = cfg.language;
+  buildVidLangTabs();
+  buildVideoAdminGrid();
+  refreshLogoPreview();
+  applyI18n();
+
+  $('color-pick').value      = draft.accent;
+  $('color-hex').textContent = draft.accent;
+  $('theme-chk').checked     = draft.lightMode;
+  $('theme-lbl').textContent = draft.lightMode ? t('light') : t('dark');
+  $('pw1').value = ''; $('pw2').value = ''; $('pw-err').textContent = '';
+
+  // Default to videos section
+  adminNavTo('videos');
+}
+
+
+/* ══════════════════════════════════════════════════════════════════
+   ADMIN — VIDEO GRID
+   ══════════════════════════════════════════════════════════════════ */
+
+function buildVideoAdminGrid() {
+  const grid  = $('video-admin-grid');
+  grid.querySelectorAll('.vid-admin-card').forEach(c => c.remove());
+  const empty = $('vac-empty');
+
+  if (catalog.videos.length === 0) { empty.style.display = ''; return; }
+  empty.style.display = 'none';
+
+  const langTitles = draft.videoTitles[adminVidLang] || {};
+
+  catalog.videos.forEach(video => {
+    const isEnabled   = draft.selectedIds.includes(video.id);
+    const customTitle = langTitles[video.id] || video.title;
+
+    const card = document.createElement('div');
+    card.className  = 'vid-admin-card' + (isEnabled ? ' enabled' : '');
+    card.dataset.id = video.id;
+
+    card.innerHTML = `
+      <div class="vac-thumb">
+        <div class="vac-thumb-shimmer"></div>
+        <img alt="${escHtml(video.title)}" />
+      </div>
+      <div class="vac-body">
+        <div class="vac-toggle-row">
+          <label class="toggle">
+            <input type="checkbox" class="vac-enabled-cb" ${isEnabled ? 'checked' : ''} />
+            <div class="toggle-track"></div>
+            <div class="toggle-knob"></div>
+          </label>
+          <span class="vac-toggle-lbl" data-i18n="showOnScreen">${escHtml(t('showOnScreen'))}</span>
+        </div>
+        <div class="field" style="margin-top:6px;">
+          <label style="font-size:0.72rem;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.07em;">Display name</label>
+          <input type="text" class="vac-name-input" value="${escHtml(customTitle)}"
+                 placeholder="${escHtml(video.title)}" />
+        </div>
+      </div>`;
+
+    // Thumbnail
+    const imgEl   = card.querySelector('.vac-thumb img');
+    const shimmer = card.querySelector('.vac-thumb-shimmer');
+    if (thumbCache.has(video.src)) {
+      bindThumbImage(imgEl, shimmer, thumbCache.get(video.src));
+    } else {
+      queueMeta(video,
+        url => bindThumbImage(imgEl, shimmer, url),
+        () => {}
+      );
+    }
+
+    // Toggle
+    const cb = card.querySelector('.vac-enabled-cb');
+    cb.addEventListener('change', () => {
+      if (cb.checked) { if (!draft.selectedIds.includes(video.id)) draft.selectedIds.push(video.id); }
+      else            { draft.selectedIds = draft.selectedIds.filter(id => id !== video.id); }
+      card.classList.toggle('enabled', cb.checked);
+    });
+
+    // Name edit
+    const nameInput = card.querySelector('.vac-name-input');
+    nameInput.addEventListener('input', () => {
+      if (!draft.videoTitles[adminVidLang]) draft.videoTitles[adminVidLang] = {};
+      const val = nameInput.value.trim();
+      if (val && val !== video.title) {
+        draft.videoTitles[adminVidLang][video.id] = val;
+      } else {
+        delete draft.videoTitles[adminVidLang][video.id];
+      }
+    });
+
+    grid.appendChild(card);
+  });
+}
+
+// Optional bulk buttons (safe if removed from the markup)
+const chkAllBtn = $('chk-all');
+if (chkAllBtn) {
+  chkAllBtn.addEventListener('click', () => {
+    catalog.videos.forEach(v => {
+      if (!draft.selectedIds.includes(v.id)) draft.selectedIds.push(v.id);
+    });
+    $('video-admin-grid').querySelectorAll('.vid-admin-card').forEach(card => {
+      card.classList.add('enabled');
+      card.querySelector('.vac-enabled-cb').checked = true;
+    });
+  });
+}
+
+const chkNoneBtn = $('chk-none');
+if (chkNoneBtn) {
+  chkNoneBtn.addEventListener('click', () => {
+    draft.selectedIds = [];
+    $('video-admin-grid').querySelectorAll('.vid-admin-card').forEach(card => {
+      card.classList.remove('enabled');
+      card.querySelector('.vac-enabled-cb').checked = false;
+    });
+  });
+}
+$('scan-btn').addEventListener('click', async () => {
+  const btn = $('scan-btn'); btn.disabled = true;
+  btn.textContent = 'Scanning\u2026';
+  const ok = await scanAllLanguages();
+  btn.disabled = false; btn.textContent = 'Scan\u2026';
+  const totalVideos = Object.values(allLangSources).reduce((n, arr) => n + arr.length, 0);
+  if (!ok || totalVideos === 0) {
+    showToast('No videos found. Refresh the media manifest and try again.');
+    return;
+  }
+  cfg.selectedIds = [];
+  buildCatalog(allLangSources[cfg.language] || []);
+  adminVidLang = cfg.language;
+  buildVidLangTabs();
+  draft.selectedIds = [...cfg.selectedIds];
+  buildVideoAdminGrid();
+  const langCount = Object.keys(allLangSources).length;
+  const msg = langCount > 1
+    ? `${totalVideos} video${totalVideos !== 1 ? 's' : ''} found across ${langCount} languages`
+    : `${totalVideos} video${totalVideos !== 1 ? 's' : ''} found`;
+  showToast(msg);
+});
+
+
+/* ══════════════════════════════════════════════════════════════════
+   ADMIN — LOGO
+   ══════════════════════════════════════════════════════════════════ */
+
+function refreshLogoPreview() {
+  const img   = $('logo-prev-img');
+  const empty = $('logo-no-logo');
+  const rmBtn = $('logo-remove');
+  if (draft.logoSrc) {
+    img.src = draft.logoSrc; img.classList.add('visible');
+    empty.style.display = 'none'; rmBtn.style.display = '';
+  } else {
+    img.classList.remove('visible');
+    empty.style.display = ''; rmBtn.style.display = 'none';
+  }
+}
+
+$('logo-file').addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  if (!file.type.startsWith('image/')) { showToast('Please select an image file.'); return; }
+  if (file.size > 3 * 1024 * 1024) { showToast('Image must be under 3 MB.'); return; }
+  const reader = new FileReader();
+  reader.onload = ev => { draft.logoSrc = ev.target.result; refreshLogoPreview(); };
+  reader.readAsDataURL(file);
+});
+$('logo-remove').addEventListener('click', () => { draft.logoSrc = null; refreshLogoPreview(); });
+
+
+/* ══════════════════════════════════════════════════════════════════
+   ADMIN — APPEARANCE LIVE PREVIEW
+   ══════════════════════════════════════════════════════════════════ */
+
+$('color-pick').addEventListener('input', e => {
+  draft.accent = e.target.value;
+  $('color-hex').textContent = draft.accent;
+  applyAccent(draft.accent);
+});
+$('theme-chk').addEventListener('change', e => {
+  draft.lightMode = e.target.checked;
+  $('theme-lbl').textContent = draft.lightMode ? t('light') : t('dark');
+  applyTheme(draft.lightMode);
+});
+
+
+/* ══════════════════════════════════════════════════════════════════
+   ADMIN — SAVE / DISCARD
+   ══════════════════════════════════════════════════════════════════ */
+
+function discardAdmin() {
+  applyAccent(cfg.accent);
+  applyTheme(cfg.lightMode);
+  showScreen('main');
+  restoreAndRender();
+}
+
+$('panel-discard').addEventListener('click', discardAdmin);
+$('screen-admin').addEventListener('keydown', e => {
+  if (e.key === 'Escape') { e.preventDefault(); discardAdmin(); }
+});
+
+$('panel-save').addEventListener('click', () => {
+  const pw1 = $('pw1').value, pw2 = $('pw2').value;
+  if (pw1 || pw2) {
+    if (pw1.length < 4) { $('pw-err').textContent = 'Password must be at least 4 characters.'; $('pw1').focus(); return; }
+    if (pw1 !== pw2)    { $('pw-err').textContent = 'Passwords do not match.'; $('pw2').focus(); return; }
+    draft.password = pw1;
+  }
+  $('pw-err').textContent = '';
+
+  // Commit draft → cfg
+  cfg.selectedIds  = [...draft.selectedIds];
+  cfg.videoVolumes = { ...draft.videoVolumes };
+  cfg.videoTitles  = JSON.parse(JSON.stringify(draft.videoTitles));
+  cfg.accent       = draft.accent;
+  cfg.lightMode    = draft.lightMode;
+  cfg.logoSrc      = draft.logoSrc;
+  cfg.password     = draft.password;
+  cfg.language     = draft.language;
+
+  persistSave();
+  applyLogo(cfg.logoSrc);
+  applyI18n();
+  showScreen('main');
+  showToast(t('saved'));
+  restoreAndRender();
+});
+
+
+/* ══════════════════════════════════════════════════════════════════
+   ADMIN CORNER BUTTON
+   ══════════════════════════════════════════════════════════════════ */
+
+$('admin-corner').addEventListener('click', openAdmin);
+$('admin-corner').addEventListener('keydown', e => {
+  if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openAdmin(); }
+});
+
+
+/* ══════════════════════════════════════════════════════════════════
+   BOOT
+   ══════════════════════════════════════════════════════════════════ */
+
+(function boot() {
+  persistLoad();
+  applyAccent(cfg.accent);
+  applyTheme(cfg.lightMode);
+  applyLogo(cfg.logoSrc);
+  buildLangSwitcher();
+  applyI18n();
+  if (loadInitialManifest() && allLangSources[cfg.language]?.length) {
+    buildCatalog(allLangSources[cfg.language]);
+  } else {
+    loadFallbackCatalog();
+  }
+  renderMainScreen();
+  showScreen('main');
+})();
+
+</script>
+</body>
+</html>
