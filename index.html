@@ -25,6 +25,7 @@
   --radius-lg:     14px;
   --header-h:      80px;
   --tile-min:      260px;
+  --tile-max:      320px;
   --tile-gap:      18px;
   --page-pad:      32px;
 }
@@ -211,10 +212,86 @@ html, body {
   flex: 1; overflow-y: auto;
   padding: var(--page-pad);
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--tile-min)), 320px));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--tile-min)), var(--tile-max)));
   gap: var(--tile-gap);
   justify-content: center;
   align-content: center;
+}
+
+/* Library view modes */
+#tile-grid.view-cards-small {
+  --tile-min: 220px;
+  --tile-max: 280px;
+  --tile-gap: 14px;
+}
+#tile-grid.view-cards-medium {
+  --tile-min: 260px;
+  --tile-max: 320px;
+  --tile-gap: 18px;
+}
+#tile-grid.view-cards-large {
+  --tile-min: 340px;
+  --tile-max: 460px;
+  --tile-gap: 24px;
+}
+#tile-grid.view-list-comfort,
+#tile-grid.view-list-compact {
+  --tile-gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  justify-content: center;
+  align-content: start;
+}
+
+#tile-grid.view-list-comfort .tile,
+#tile-grid.view-list-compact .tile {
+  flex-direction: row;
+  min-height: 152px;
+}
+#tile-grid.view-list-comfort .tile-thumb,
+#tile-grid.view-list-compact .tile-thumb {
+  width: 270px;
+  aspect-ratio: auto;
+  min-height: 152px;
+  flex-shrink: 0;
+}
+#tile-grid.view-list-comfort .tile-meta,
+#tile-grid.view-list-compact .tile-meta {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 14px 18px;
+}
+#tile-grid.view-list-comfort .tile-title,
+#tile-grid.view-list-compact .tile-title {
+  white-space: normal;
+  line-height: 1.3;
+  margin-bottom: 6px;
+}
+#tile-grid.view-list-comfort .tile-title {
+  font-size: 1.08rem;
+}
+#tile-grid.view-list-comfort .tile-dur {
+  font-size: 0.9rem;
+}
+#tile-grid.view-list-compact {
+  --tile-gap: 8px;
+}
+#tile-grid.view-list-compact .tile {
+  min-height: 112px;
+}
+#tile-grid.view-list-compact .tile-thumb {
+  width: 190px;
+  min-height: 112px;
+}
+#tile-grid.view-list-compact .tile-meta {
+  padding: 10px 14px;
+}
+#tile-grid.view-list-compact .tile-title {
+  font-size: 0.95rem;
+  margin-bottom: 3px;
+}
+#tile-grid.view-list-compact .tile-dur {
+  font-size: 0.76rem;
 }
 
 /* Tile card */
@@ -625,12 +702,35 @@ body.light #logo-preview-box {
 .vid-lang-select:focus { border-color: var(--accent); outline: none; }
 .vac-thumb-shimmer.hidden { display: none; }
 
+.setting-select {
+  min-width: 260px; max-width: 380px; width: 100%;
+  background: var(--surface2); border: 1px solid var(--border); color: var(--text);
+  border-radius: var(--radius-sm); padding: 11px 14px;
+  font-size: 0.92rem; font-weight: 700; font-family: inherit;
+}
+.setting-select:focus { border-color: var(--accent); outline: none; }
+
 @media (max-width: 760px) {
   #vid-lang-tabs {
     flex-direction: column; align-items: stretch;
   }
   .vid-lang-select {
     max-width: none;
+  }
+  #tile-grid.view-list-comfort,
+  #tile-grid.view-list-compact {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  #tile-grid.view-list-comfort .tile,
+  #tile-grid.view-list-compact .tile {
+    flex-direction: column;
+    min-height: auto;
+  }
+  #tile-grid.view-list-comfort .tile-thumb,
+  #tile-grid.view-list-compact .tile-thumb {
+    width: 100%;
+    min-height: 0;
+    aspect-ratio: 16 / 9;
   }
 }
 
@@ -739,7 +839,7 @@ body.light #logo-preview-box {
   <div id="admin-auth-wrap">
     <div class="auth-card" id="auth-card">
       <h2 data-i18n="adminTitle">Admin Access</h2>
-      <p>Enter your password to continue</p>
+      <p data-i18n="enterPasswordToContinue">Enter your password to continue</p>
       <div class="field">
         <label for="auth-input" data-i18n="password">Password</label>
         <input type="password" id="auth-input" autocomplete="off" placeholder="••••" />
@@ -776,7 +876,7 @@ body.light #logo-preview-box {
 
     <!-- ── Global toolbar ── -->
     <div class="admin-topbar">
-      <button class="btn btn-surface" id="scan-btn">Scan…</button>
+      <button class="btn btn-surface" id="scan-btn" data-i18n="scan">Scan...</button>
     </div>
 
     <!-- ── Videos section ── -->
@@ -784,12 +884,10 @@ body.light #logo-preview-box {
       <h2 class="sec-title" data-i18n="videos">Videos</h2>
 
       <div class="setting-group">
-        <span class="setting-label" >Displayed Media</span>
+        <span class="setting-label" data-i18n="displayedMedia">Displayed Media</span>
         <div id="vid-lang-tabs"></div>
         <div id="video-admin-grid">
-          <div class="vac-empty" id="vac-empty">
-            No videos loaded. Use the <strong>Scan…</strong> button (top right) to scan the media folder.
-          </div>
+          <div class="vac-empty" id="vac-empty" data-i18n="noVideosLoaded">No videos loaded. Use the Scan button (top right) to scan the media folder.</div>
         </div>
       </div>
     </div>
@@ -804,18 +902,15 @@ body.light #logo-preview-box {
         <div class="logo-section">
           <div id="logo-preview-box">
             <img id="logo-prev-img" alt="Logo preview" />
-            <span id="logo-no-logo">No logo set</span>
+            <span id="logo-no-logo" data-i18n="noLogoSet">No logo set</span>
           </div>
-          <p class="logo-hint">
-            Auto-loaded from <code>assets/logo.png</code> (also tries <code>.jpg</code> and <code>.svg</code>).
-            Upload below to override.
-          </p>
+          <p class="logo-hint" data-i18n="logoHint">Auto-loaded from assets/logo.png (also tries .jpg and .svg). Upload below to override.</p>
           <div class="logo-btns">
-            <label class="btn btn-surface file-btn">
+            <label class="btn btn-surface file-btn" data-i18n="uploadLogo">
               Upload logo
               <input type="file" id="logo-file" accept="image/*" />
             </label>
-            <button class="btn btn-ghost" id="logo-remove" style="display:none;">Remove</button>
+            <button class="btn btn-ghost" id="logo-remove" data-i18n="remove" style="display:none;">Remove</button>
           </div>
         </div>
       </div>
@@ -826,7 +921,7 @@ body.light #logo-preview-box {
         <div class="color-row">
           <input type="color" id="color-pick" />
           <span class="color-hex" id="color-hex">#00BFA5</span>
-          <span class="color-note">Applies to buttons &amp; focus rings — backgrounds stay neutral</span>
+          <span class="color-note" data-i18n="accentNote">Applies to buttons and focus rings. Backgrounds stay neutral.</span>
         </div>
       </div>
 
@@ -842,6 +937,18 @@ body.light #logo-preview-box {
           <span class="toggle-lbl" id="theme-lbl">Dark</span>
         </div>
       </div>
+
+      <!-- View mode -->
+      <div class="setting-group">
+        <span class="setting-label" data-i18n="viewMode">View Mode</span>
+        <select id="view-mode" class="setting-select" aria-label="View mode">
+          <option value="cards-small" data-i18n="viewCardsSmall">Cards (smaller)</option>
+          <option value="cards-medium" data-i18n="viewCardsMedium">Cards (medium)</option>
+          <option value="cards-large" data-i18n="viewCardsLarge">Cards (larger)</option>
+          <option value="list-comfort" data-i18n="viewListComfort">Comfortable list</option>
+          <option value="list-compact" data-i18n="viewListCompact">Compact list</option>
+        </select>
+      </div>
     </div>
 
     <!-- ── Security section ── -->
@@ -852,14 +959,14 @@ body.light #logo-preview-box {
         <span class="setting-label" data-i18n="changePw">Change Password</span>
         <div class="pw-fields">
           <div class="field">
-            <label for="pw1">New password</label>
+               <label for="pw1" data-i18n="newPassword">New password</label>
             <input type="password" id="pw1" autocomplete="new-password"
-                   placeholder="Leave blank to keep current" />
+                 data-i18n-ph="leaveBlankKeepCurrent" placeholder="Leave blank to keep current" />
           </div>
           <div class="field">
-            <label for="pw2">Confirm password</label>
+               <label for="pw2" data-i18n="confirmPassword">Confirm password</label>
             <input type="password" id="pw2" autocomplete="new-password"
-                   placeholder="Repeat new password" />
+                 data-i18n-ph="repeatNewPassword" placeholder="Repeat new password" />
           </div>
           <span class="inline-err" id="pw-err" aria-live="polite"></span>
         </div>
@@ -888,6 +995,7 @@ const DEFAULT_ACCENT   = '#00BFA5';
 const IDLE_TIMEOUT_MS  = 3 * 60 * 1000;   // 3 minutes
 const HUD_FADE_MS      = 1500;             // 1.5 seconds of inactivity → fade HUD
 const SEEK_STEP_SECONDS = 5;
+const VIEW_MODES = ['cards-medium', 'cards-large', 'cards-small', 'list-comfort', 'list-compact'];
 
 const LANGUAGES = [
   { code: 'en', label: 'English',   folder: 'en'    },
@@ -908,6 +1016,22 @@ const UI_STRINGS = {
     changePw:'Change Password', volume:'Volume', noVideos:'No videos to display',
     errTitle:'Cannot play this video', errMsg:'File missing or codec not supported.', errBtn:'Return to library',
     showOnScreen:'Show on screen',
+    openAdminToConfigure:'Open admin settings to configure your video library.',
+    displayedMedia:'Displayed Media', languageLibrary:'Language library', chooseLanguageFolder:'Choose which language folder you want to manage.',
+    displayName:'Display name',
+    noVideosLoaded:'No videos loaded. Use the Scan button (top right) to scan the media folder.',
+    noLogoSet:'No logo set', uploadLogo:'Upload logo', remove:'Remove',
+    logoHint:'Auto-loaded from assets/logo.png (also tries .jpg and .svg). Upload below to override.',
+    accentNote:'Applies to buttons and focus rings. Backgrounds stay neutral.',
+    enterPasswordToContinue:'Enter your password to continue',
+    newPassword:'New password', confirmPassword:'Confirm password',
+    leaveBlankKeepCurrent:'Leave blank to keep current', repeatNewPassword:'Repeat new password',
+    pwMin:'Password must be at least 4 characters.', pwMismatch:'Passwords do not match.',
+    scan:'Scan...', scanning:'Scanning...',
+    noVideosFound:'No videos found. Refresh the media manifest and try again.',
+    videosFoundAcross:'{count} videos found across {langs} languages', videosFound:'{count} videos found',
+    pickImageFile:'Please select an image file.', imageUnder3mb:'Image must be under 3 MB.',
+    viewMode:'View Mode', viewCardsMedium:'Card size (current)', viewCardsLarge:'Cards (larger)', viewCardsSmall:'Cards (smaller)', viewListComfort:'Comfortable list', viewListCompact:'Compact list',
   },
   pt: {
     tagline:'Selecione um vídeo para assistir', back:'Voltar', adminTitle:'Configurações',
@@ -919,6 +1043,22 @@ const UI_STRINGS = {
     changePw:'Alterar Senha', volume:'Volume', noVideos:'Nenhum vídeo para exibir',
     errTitle:'Não foi possível reproduzir', errMsg:'Arquivo ausente ou codec não suportado.', errBtn:'Voltar à biblioteca',
     showOnScreen:'Exibir na tela',
+    openAdminToConfigure:'Abra as configurações de administrador para configurar sua biblioteca de vídeos.',
+    displayedMedia:'Mídia exibida', languageLibrary:'Biblioteca de idiomas', chooseLanguageFolder:'Escolha qual pasta de idioma deseja gerenciar.',
+    displayName:'Nome de exibição',
+    noVideosLoaded:'Nenhum vídeo carregado. Use o botão Escanear (canto superior direito) para escanear a pasta de mídia.',
+    noLogoSet:'Nenhum logotipo definido', uploadLogo:'Enviar logotipo', remove:'Remover',
+    logoHint:'Carregado automaticamente de assets/logo.png (também tenta .jpg e .svg). Envie abaixo para substituir.',
+    accentNote:'Aplica-se a botões e contornos de foco. Os fundos permanecem neutros.',
+    enterPasswordToContinue:'Digite sua senha para continuar',
+    newPassword:'Nova senha', confirmPassword:'Confirmar senha',
+    leaveBlankKeepCurrent:'Deixe em branco para manter a atual', repeatNewPassword:'Repita a nova senha',
+    pwMin:'A senha deve ter pelo menos 4 caracteres.', pwMismatch:'As senhas não coincidem.',
+    scan:'Escanear...', scanning:'Escaneando...',
+    noVideosFound:'Nenhum vídeo encontrado. Atualize o manifesto de mídia e tente novamente.',
+    videosFoundAcross:'{count} vídeos encontrados em {langs} idiomas', videosFound:'{count} vídeos encontrados',
+    pickImageFile:'Selecione um arquivo de imagem.', imageUnder3mb:'A imagem deve ter menos de 3 MB.',
+    viewMode:'Modo de visualização', viewCardsMedium:'Tamanho de cartões (atual)', viewCardsLarge:'Cartões (maiores)', viewCardsSmall:'Cartões (menores)', viewListComfort:'Lista confortável', viewListCompact:'Lista compacta',
   },
   es: {
     tagline:'Selecciona un video para ver', back:'Volver', adminTitle:'Configuración',
@@ -930,6 +1070,22 @@ const UI_STRINGS = {
     changePw:'Cambiar Contraseña', volume:'Volumen', noVideos:'No hay videos',
     errTitle:'No se puede reproducir', errMsg:'Archivo no encontrado o códec no compatible.', errBtn:'Volver a la biblioteca',
     showOnScreen:'Mostrar en pantalla',
+    openAdminToConfigure:'Abre la configuración de administrador para configurar tu biblioteca de videos.',
+    displayedMedia:'Contenido mostrado', languageLibrary:'Biblioteca de idiomas', chooseLanguageFolder:'Elige qué carpeta de idioma quieres administrar.',
+    displayName:'Nombre para mostrar',
+    noVideosLoaded:'No hay videos cargados. Usa el botón Escanear (arriba a la derecha) para escanear la carpeta multimedia.',
+    noLogoSet:'No hay logotipo', uploadLogo:'Subir logotipo', remove:'Quitar',
+    logoHint:'Se carga automáticamente desde assets/logo.png (también prueba .jpg y .svg). Sube uno abajo para reemplazar.',
+    accentNote:'Se aplica a botones y anillos de enfoque. Los fondos se mantienen neutros.',
+    enterPasswordToContinue:'Introduce tu contraseña para continuar',
+    newPassword:'Nueva contraseña', confirmPassword:'Confirmar contraseña',
+    leaveBlankKeepCurrent:'Déjalo vacío para mantener la actual', repeatNewPassword:'Repite la nueva contraseña',
+    pwMin:'La contraseña debe tener al menos 4 caracteres.', pwMismatch:'Las contraseñas no coinciden.',
+    scan:'Escanear...', scanning:'Escaneando...',
+    noVideosFound:'No se encontraron videos. Actualiza el manifiesto multimedia y vuelve a intentarlo.',
+    videosFoundAcross:'{count} videos encontrados en {langs} idiomas', videosFound:'{count} videos encontrados',
+    pickImageFile:'Selecciona un archivo de imagen.', imageUnder3mb:'La imagen debe ser menor de 3 MB.',
+    viewMode:'Modo de vista', viewCardsMedium:'Tamaño de tarjetas (actual)', viewCardsLarge:'Tarjetas (más grandes)', viewCardsSmall:'Tarjetas (más pequeñas)', viewListComfort:'Lista cómoda', viewListCompact:'Lista compacta',
   },
   fr: {
     tagline:'Sélectionnez une vidéo à regarder', back:'Retour', adminTitle:'Paramètres',
@@ -941,6 +1097,22 @@ const UI_STRINGS = {
     changePw:'Changer de Mot de Passe', volume:'Volume', noVideos:'Aucune vidéo à afficher',
     errTitle:'Impossible de lire', errMsg:'Fichier manquant ou codec non supporté.', errBtn:'Retour à la bibliothèque',
     showOnScreen:'Afficher à l\'écran',
+    openAdminToConfigure:'Ouvrez les paramètres admin pour configurer votre vidéothèque.',
+    displayedMedia:'Médias affichés', languageLibrary:'Bibliothèque de langues', chooseLanguageFolder:'Choisissez le dossier de langue à gérer.',
+    displayName:'Nom affiché',
+    noVideosLoaded:'Aucune vidéo chargée. Utilisez le bouton Scanner (en haut à droite) pour analyser le dossier média.',
+    noLogoSet:'Aucun logo défini', uploadLogo:'Téléverser un logo', remove:'Supprimer',
+    logoHint:'Chargé automatiquement depuis assets/logo.png (essaie aussi .jpg et .svg). Téléversez ci-dessous pour remplacer.',
+    accentNote:'S\'applique aux boutons et anneaux de focus. Les arrière-plans restent neutres.',
+    enterPasswordToContinue:'Entrez votre mot de passe pour continuer',
+    newPassword:'Nouveau mot de passe', confirmPassword:'Confirmer le mot de passe',
+    leaveBlankKeepCurrent:'Laissez vide pour conserver l\'actuel', repeatNewPassword:'Répétez le nouveau mot de passe',
+    pwMin:'Le mot de passe doit comporter au moins 4 caractères.', pwMismatch:'Les mots de passe ne correspondent pas.',
+    scan:'Scanner...', scanning:'Analyse...',
+    noVideosFound:'Aucune vidéo trouvée. Actualisez le manifeste média et réessayez.',
+    videosFoundAcross:'{count} vidéos trouvées dans {langs} langues', videosFound:'{count} vidéos trouvées',
+    pickImageFile:'Veuillez sélectionner un fichier image.', imageUnder3mb:'L\'image doit faire moins de 3 Mo.',
+    viewMode:'Mode d\'affichage', viewCardsMedium:'Taille des cartes (actuelle)', viewCardsLarge:'Cartes (plus grandes)', viewCardsSmall:'Cartes (plus petites)', viewListComfort:'Liste confortable', viewListCompact:'Liste compacte',
   },
   zh: {
     tagline:'选择视频观看', back:'返回', adminTitle:'展台设置',
@@ -952,6 +1124,22 @@ const UI_STRINGS = {
     changePw:'修改密码', volume:'音量', noVideos:'没有可显示的视频',
     errTitle:'无法播放视频', errMsg:'文件缺失或不支持的编解码器。', errBtn:'返回库',
     showOnScreen:'在屏幕上显示',
+    openAdminToConfigure:'打开管理员设置以配置视频库。',
+    displayedMedia:'显示的媒体', languageLibrary:'语言媒体库', chooseLanguageFolder:'选择要管理的语言文件夹。',
+    displayName:'显示名称',
+    noVideosLoaded:'未加载视频。请使用右上角的扫描按钮扫描媒体文件夹。',
+    noLogoSet:'未设置标志', uploadLogo:'上传标志', remove:'移除',
+    logoHint:'会自动从 assets/logo.png 加载（也会尝试 .jpg 和 .svg）。可在下方上传覆盖。',
+    accentNote:'应用于按钮和焦点边框，背景保持中性。',
+    enterPasswordToContinue:'请输入密码以继续',
+    newPassword:'新密码', confirmPassword:'确认密码',
+    leaveBlankKeepCurrent:'留空则保留当前密码', repeatNewPassword:'再次输入新密码',
+    pwMin:'密码至少需要 4 个字符。', pwMismatch:'两次密码不一致。',
+    scan:'扫描...', scanning:'正在扫描...',
+    noVideosFound:'未找到视频。请刷新媒体清单后重试。',
+    videosFoundAcross:'在 {langs} 种语言中找到 {count} 个视频', videosFound:'找到 {count} 个视频',
+    pickImageFile:'请选择图像文件。', imageUnder3mb:'图像大小必须小于 3 MB。',
+    viewMode:'视图模式', viewCardsMedium:'卡片大小（当前）', viewCardsLarge:'卡片（更大）', viewCardsSmall:'卡片（更小）', viewListComfort:'舒适列表', viewListCompact:'紧凑列表',
   },
 };
 
@@ -985,6 +1173,10 @@ function t(key) {
   return (UI_STRINGS[lang] && UI_STRINGS[lang][key]) || UI_STRINGS.en[key] || key;
 }
 
+function tf(key, vars = {}) {
+  return t(key).replace(/\{(\w+)\}/g, (_, k) => String(vars[k] ?? ''));
+}
+
 // Map a language code to its actual media sub-folder name
 function langFolder(code) {
   const l = LANGUAGES.find(x => x.code === code);
@@ -1006,6 +1198,7 @@ const cfg = {
   videoVolumes: {},         // { videoId: 0.0–1.0 }
   videoTitles:  {},         // { lang: { videoId: customTitle } }
   language:     'en',
+  viewMode:     'cards-medium',
 };
 
 const catalog = { videos: [] };
@@ -1027,6 +1220,7 @@ const draft = {
   logoSrc:      null,
   password:     DEFAULT_PASSWORD,
   language:     'en',
+  viewMode:     'cards-medium',
 };
 
 // In-memory handle to the scanned media root (can't persist File System handles)
@@ -1055,6 +1249,7 @@ function persistLoad() {
     if (s.videoVolumes && typeof s.videoVolumes === 'object') cfg.videoVolumes = s.videoVolumes;
     if (s.videoTitles  && typeof s.videoTitles  === 'object') cfg.videoTitles  = s.videoTitles;
     if (s.language && UI_STRINGS[s.language]) cfg.language = s.language;
+    if (s.viewMode && VIEW_MODES.includes(s.viewMode)) cfg.viewMode = s.viewMode;
   } catch (_) {}
 }
 
@@ -1063,6 +1258,7 @@ function persistSave() {
     password: cfg.password, accent: cfg.accent, lightMode: cfg.lightMode,
     logoSrc: cfg.logoSrc, selectedIds: cfg.selectedIds, disabledIds: cfg.disabledIds,
     videoVolumes: cfg.videoVolumes, videoTitles: cfg.videoTitles, language: cfg.language,
+    viewMode: cfg.viewMode,
   };
   try { localStorage.setItem(LS_KEY, JSON.stringify(data)); } catch (_) {
     try { data.logoSrc = null; localStorage.setItem(LS_KEY, JSON.stringify(data)); } catch (_) {}
@@ -1110,11 +1306,25 @@ function applyI18n() {
     const key = el.dataset.i18n;
     el.textContent = t(key);
   });
+  document.querySelectorAll('[data-i18n-ph]').forEach(el => {
+    const key = el.dataset.i18nPh;
+    el.setAttribute('placeholder', t(key));
+  });
   // Sync language dropdown
   const langSel = $('lang-select');
   if (langSel) langSel.value = cfg.language;
+  const adminView = $('view-mode');
+  if (adminView) adminView.value = draft.viewMode;
   // html lang attribute
   document.documentElement.lang = cfg.language;
+}
+
+function applyViewMode(mode) {
+  const nextMode = VIEW_MODES.includes(mode) ? mode : 'cards-medium';
+  const grid = $('tile-grid');
+  if (!grid) return;
+  grid.classList.remove('view-cards-small', 'view-cards-medium', 'view-cards-large', 'view-list-comfort', 'view-list-compact');
+  grid.classList.add(`view-${nextMode}`);
 }
 
 
@@ -1493,6 +1703,7 @@ function hasGridSelection() {
 
 function renderMainScreen() {
   const grid = $('tile-grid');
+  applyViewMode(cfg.viewMode);
   const hadSelection = hasGridSelection();
   grid.innerHTML = ''; ui.gridTiles = []; rovingReset();
 
@@ -1504,7 +1715,7 @@ function renderMainScreen() {
         <svg viewBox="0 0 24 24"><path d="M18 4l2 4h-3l-2-4h-2l2 4h-3l-2-4H8l2 4H7L5
           4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V4h-4z"/></svg>
         <h2>${escHtml(t('noVideos'))}</h2>
-        <p>Open admin settings to configure your video library.</p>
+        <p>${escHtml(t('openAdminToConfigure'))}</p>
       </div>`;
     return;
   }
@@ -1678,8 +1889,8 @@ function buildVidLangTabs() {
 
   tabs.innerHTML = `
     <div class="vid-lang-copy">
-      <strong>Language library</strong>
-      <span>Choose which language folder you want to manage.</span>
+      <strong>${escHtml(t('languageLibrary'))}</strong>
+      <span>${escHtml(t('chooseLanguageFolder'))}</span>
     </div>
     <select class="vid-lang-select" id="vid-lang-select-admin" aria-label="Video language">
       ${options}
@@ -2006,6 +2217,7 @@ function openAdminPanel() {
   draft.logoSrc      = cfg.logoSrc;
   draft.password     = cfg.password;
   draft.language     = cfg.language;
+  draft.viewMode     = cfg.viewMode;
 
   adminVidLang = cfg.language;
   buildVidLangTabs();
@@ -2017,6 +2229,7 @@ function openAdminPanel() {
   $('color-hex').textContent = draft.accent;
   $('theme-chk').checked     = draft.lightMode;
   $('theme-lbl').textContent = draft.lightMode ? t('light') : t('dark');
+  $('view-mode').value       = draft.viewMode;
   $('pw1').value = ''; $('pw2').value = ''; $('pw-err').textContent = '';
 
   // Default to videos section
@@ -2061,7 +2274,7 @@ function buildVideoAdminGrid() {
           <span class="vac-toggle-lbl" data-i18n="showOnScreen">${escHtml(t('showOnScreen'))}</span>
         </div>
         <div class="field" style="margin-top:6px;">
-          <label style="font-size:0.72rem;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.07em;">Display name</label>
+          <label style="font-size:0.72rem;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.07em;">${escHtml(t('displayName'))}</label>
           <input type="text" class="vac-name-input" value="${escHtml(customTitle)}"
                  placeholder="${escHtml(video.title)}" />
         </div>
@@ -2137,12 +2350,12 @@ if (chkNoneBtn) {
 }
 $('scan-btn').addEventListener('click', async () => {
   const btn = $('scan-btn'); btn.disabled = true;
-  btn.textContent = 'Scanning\u2026';
+  btn.textContent = t('scanning');
   const ok = await scanAllLanguages();
-  btn.disabled = false; btn.textContent = 'Scan\u2026';
+  btn.disabled = false; btn.textContent = t('scan');
   const totalVideos = Object.values(allLangSources).reduce((n, arr) => n + arr.length, 0);
   if (!ok || totalVideos === 0) {
-    showToast('No videos found. Refresh the media manifest and try again.');
+    showToast(t('noVideosFound'));
     return;
   }
   buildCatalog(allLangSources[cfg.language] || []);
@@ -2152,8 +2365,8 @@ $('scan-btn').addEventListener('click', async () => {
   buildVideoAdminGrid();
   const langCount = Object.keys(allLangSources).length;
   const msg = langCount > 1
-    ? `${totalVideos} video${totalVideos !== 1 ? 's' : ''} found across ${langCount} languages`
-    : `${totalVideos} video${totalVideos !== 1 ? 's' : ''} found`;
+    ? tf('videosFoundAcross', { count: totalVideos, langs: langCount })
+    : tf('videosFound', { count: totalVideos });
   showToast(msg);
 });
 
@@ -2178,8 +2391,8 @@ function refreshLogoPreview() {
 $('logo-file').addEventListener('change', e => {
   const file = e.target.files[0];
   if (!file) return;
-  if (!file.type.startsWith('image/')) { showToast('Please select an image file.'); return; }
-  if (file.size > 3 * 1024 * 1024) { showToast('Image must be under 3 MB.'); return; }
+  if (!file.type.startsWith('image/')) { showToast(t('pickImageFile')); return; }
+  if (file.size > 3 * 1024 * 1024) { showToast(t('imageUnder3mb')); return; }
   const reader = new FileReader();
   reader.onload = ev => { draft.logoSrc = ev.target.result; refreshLogoPreview(); };
   reader.readAsDataURL(file);
@@ -2202,6 +2415,11 @@ $('theme-chk').addEventListener('change', e => {
   applyTheme(draft.lightMode);
 });
 
+$('view-mode').addEventListener('change', e => {
+  draft.viewMode = e.target.value;
+  applyViewMode(draft.viewMode);
+});
+
 
 /* ══════════════════════════════════════════════════════════════════
    ADMIN — SAVE / RETURN
@@ -2210,6 +2428,7 @@ $('theme-chk').addEventListener('change', e => {
 function returnAdmin() {
   applyAccent(cfg.accent);
   applyTheme(cfg.lightMode);
+  applyViewMode(cfg.viewMode);
   showScreen('main');
   restoreAndRender();
 }
@@ -2222,8 +2441,8 @@ $('screen-admin').addEventListener('keydown', e => {
 $('panel-save').addEventListener('click', () => {
   const pw1 = $('pw1').value, pw2 = $('pw2').value;
   if (pw1 || pw2) {
-    if (pw1.length < 4) { $('pw-err').textContent = 'Password must be at least 4 characters.'; $('pw1').focus(); return; }
-    if (pw1 !== pw2)    { $('pw-err').textContent = 'Passwords do not match.'; $('pw2').focus(); return; }
+    if (pw1.length < 4) { $('pw-err').textContent = t('pwMin'); $('pw1').focus(); return; }
+    if (pw1 !== pw2)    { $('pw-err').textContent = t('pwMismatch'); $('pw2').focus(); return; }
     draft.password = pw1;
   }
   $('pw-err').textContent = '';
@@ -2237,6 +2456,7 @@ $('panel-save').addEventListener('click', () => {
   cfg.logoSrc      = draft.logoSrc;
   cfg.password     = draft.password;
   cfg.language     = draft.language;
+  cfg.viewMode     = draft.viewMode;
 
   persistSave();
   applyLogo(cfg.logoSrc);
@@ -2266,6 +2486,7 @@ $('admin-corner').addEventListener('keydown', e => {
   applyAccent(cfg.accent);
   applyTheme(cfg.lightMode);
   applyLogo(cfg.logoSrc);
+  applyViewMode(cfg.viewMode);
   buildLangSwitcher();
   applyI18n();
   if (loadInitialManifest() && cfg.language in allLangSources) {
