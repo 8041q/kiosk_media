@@ -768,7 +768,7 @@ body.light #logo-preview-box {
     </nav>
     <div class="sidebar-footer">
       <button class="btn btn-full" id="panel-save" data-i18n="save">Save &amp; Return</button>
-      <button class="btn btn-ghost btn-full" id="panel-discard" data-i18n="discard">Discard</button>
+      <button class="btn btn-ghost btn-full" id="panel-return" data-i18n="return">Return</button>
     </div>
   </div>
 
@@ -900,7 +900,7 @@ const LANGUAGES = [
 const UI_STRINGS = {
   en: {
     tagline:'Select a video to watch', back:'Back', adminTitle:'Kiosk Settings',
-    unlock:'Unlock settings', save:'Save & Return', discard:'Discard',
+    unlock:'Unlock settings', save:'Save & Return', return:'Return',
     password:'Password', wrongPw:'Incorrect password — try again.', saved:'Settings saved',
     videos:'Videos', appearance:'Appearance', language:'Language', security:'Security',
     selectAll:'Select all', deselectAll:'Deselect all', scanFolder:'Scan folder\u2026',
@@ -911,7 +911,7 @@ const UI_STRINGS = {
   },
   pt: {
     tagline:'Selecione um vídeo para assistir', back:'Voltar', adminTitle:'Configurações',
-    unlock:'Desbloquear', save:'Salvar e Retornar', discard:'Descartar',
+    unlock:'Desbloquear', save:'Salvar e Retornar', return:'Retornar',
     password:'Senha', wrongPw:'Senha incorreta — tente novamente.', saved:'Configurações salvas',
     videos:'Vídeos', appearance:'Aparência', language:'Idioma', security:'Segurança',
     selectAll:'Selecionar todos', deselectAll:'Desmarcar todos', scanFolder:'Escanear pasta\u2026',
@@ -922,7 +922,7 @@ const UI_STRINGS = {
   },
   es: {
     tagline:'Selecciona un video para ver', back:'Volver', adminTitle:'Configuración',
-    unlock:'Desbloquear', save:'Guardar y Regresar', discard:'Descartar',
+    unlock:'Desbloquear', save:'Guardar y Regresar', return:'Regresar',
     password:'Contraseña', wrongPw:'Contraseña incorrecta — inténtalo de nuevo.', saved:'Configuración guardada',
     videos:'Videos', appearance:'Apariencia', language:'Idioma', security:'Seguridad',
     selectAll:'Seleccionar todo', deselectAll:'Deseleccionar todo', scanFolder:'Escanear carpeta\u2026',
@@ -933,7 +933,7 @@ const UI_STRINGS = {
   },
   fr: {
     tagline:'Sélectionnez une vidéo à regarder', back:'Retour', adminTitle:'Paramètres',
-    unlock:'Déverrouiller', save:'Enregistrer et Fermer', discard:'Annuler',
+    unlock:'Déverrouiller', save:'Enregistrer et Fermer', return:'Retour',
     password:'Mot de passe', wrongPw:'Mot de passe incorrect — réessayez.', saved:'Paramètres enregistrés',
     videos:'Vidéos', appearance:'Apparence', language:'Langue', security:'Sécurité',
     selectAll:'Tout sélectionner', deselectAll:'Tout désélectionner', scanFolder:'Scanner le dossier\u2026',
@@ -944,7 +944,7 @@ const UI_STRINGS = {
   },
   zh: {
     tagline:'选择视频观看', back:'返回', adminTitle:'展台设置',
-    unlock:'解锁', save:'保存并返回', discard:'放弃',
+    unlock:'解锁', save:'保存并返回', return:'返回',
     password:'密码', wrongPw:'密码错误，请重试。', saved:'设置已保存',
     videos:'视频', appearance:'外观', language:'语言', security:'安全',
     selectAll:'全选', deselectAll:'取消全选', scanFolder:'扫描文件夹\u2026',
@@ -1002,6 +1002,7 @@ const cfg = {
   lightMode:    false,
   logoSrc:      null,
   selectedIds:  [],
+  disabledIds:  [],         // IDs explicitly hidden by the admin
   videoVolumes: {},         // { videoId: 0.0–1.0 }
   videoTitles:  {},         // { lang: { videoId: customTitle } }
   language:     'en',
@@ -1050,6 +1051,7 @@ function persistLoad() {
     if (typeof s.lightMode === 'boolean') cfg.lightMode    = s.lightMode;
     if (s.logoSrc)                        cfg.logoSrc      = s.logoSrc;
     if (Array.isArray(s.selectedIds))     cfg.selectedIds  = s.selectedIds;
+    if (Array.isArray(s.disabledIds))     cfg.disabledIds  = s.disabledIds;
     if (s.videoVolumes && typeof s.videoVolumes === 'object') cfg.videoVolumes = s.videoVolumes;
     if (s.videoTitles  && typeof s.videoTitles  === 'object') cfg.videoTitles  = s.videoTitles;
     if (s.language && UI_STRINGS[s.language]) cfg.language = s.language;
@@ -1059,7 +1061,7 @@ function persistLoad() {
 function persistSave() {
   const data = {
     password: cfg.password, accent: cfg.accent, lightMode: cfg.lightMode,
-    logoSrc: cfg.logoSrc, selectedIds: cfg.selectedIds,
+    logoSrc: cfg.logoSrc, selectedIds: cfg.selectedIds, disabledIds: cfg.disabledIds,
     videoVolumes: cfg.videoVolumes, videoTitles: cfg.videoTitles, language: cfg.language,
   };
   try { localStorage.setItem(LS_KEY, JSON.stringify(data)); } catch (_) {
@@ -1203,13 +1205,11 @@ function makeRecord(name, src) {
 
 function buildCatalog(sources) {
   catalog.videos = sources.map(({ name, src }) => makeRecord(name, src));
-  const allIds   = new Set(catalog.videos.map(v => v.id));
-  if (cfg.selectedIds.length === 0) {
-    cfg.selectedIds = catalog.videos.map(v => v.id);
-  } else {
-    cfg.selectedIds = cfg.selectedIds.filter(id => allIds.has(id));
-    for (const v of catalog.videos) {
-      if (!cfg.selectedIds.includes(v.id)) cfg.selectedIds.push(v.id);
+  // Add any brand-new video IDs as enabled by default.
+  // Never remove IDs from other languages; never re-add explicitly disabled IDs.
+  for (const v of catalog.videos) {
+    if (!cfg.selectedIds.includes(v.id) && !cfg.disabledIds.includes(v.id)) {
+      cfg.selectedIds.push(v.id);
     }
   }
 }
@@ -1234,11 +1234,11 @@ function applyMediaManifest(manifest) {
   if (!manifest || typeof manifest !== 'object') return false;
 
   LANGUAGES.forEach(({ code }) => {
-    const sources = makeSourcesFromPaths(manifest[code] || []);
-    if (sources.length > 0) allLangSources[code] = sources;
+    // Always set the key so empty folders are distinguishable from never-scanned.
+    allLangSources[code] = makeSourcesFromPaths(manifest[code] || []);
   });
 
-  return Object.keys(allLangSources).length > 0;
+  return Object.values(allLangSources).some(arr => arr.length > 0);
 }
 
 function loadInitialManifest() {
@@ -1658,8 +1658,8 @@ async function applyLanguage(code, persist) {
   if (persist) persistSave();
   applyI18n();
 
-  if (allLangSources[code]?.length) {
-    cfg.selectedIds = [];
+  if (code in allLangSources) {
+    // Key present means we have scanned. Use actual sources (may be empty).
     buildCatalog(allLangSources[code]);
   } else {
     loadFallbackCatalog();
@@ -1698,11 +1698,12 @@ async function switchAdminVidLang(lang) {
 }
 
 async function loadAdminLangCatalog(lang) {
-  if (allLangSources[lang]?.length) {
-    cfg.selectedIds = [];
+  if (lang in allLangSources) {
+    // Key present means we have scanned. Use actual sources (may be empty).
     buildCatalog(allLangSources[lang]);
     return;
   }
+  // Never scanned — use hardcoded fallback only as last resort.
   const paths   = VIDEO_LIST[lang] || VIDEO_LIST.en;
   const sources = paths.map(p => ({ name: p.split('/').pop(), src: p }));
   buildCatalog(sources);
@@ -2078,12 +2079,20 @@ function buildVideoAdminGrid() {
       );
     }
 
-    // Toggle
+    // Toggle — auto-saves immediately; no Save & Return needed for video selection.
     const cb = card.querySelector('.vac-enabled-cb');
     cb.addEventListener('change', () => {
-      if (cb.checked) { if (!draft.selectedIds.includes(video.id)) draft.selectedIds.push(video.id); }
-      else            { draft.selectedIds = draft.selectedIds.filter(id => id !== video.id); }
+      if (cb.checked) {
+        if (!cfg.selectedIds.includes(video.id))   cfg.selectedIds.push(video.id);
+        if (!draft.selectedIds.includes(video.id)) draft.selectedIds.push(video.id);
+        cfg.disabledIds = cfg.disabledIds.filter(id => id !== video.id);
+      } else {
+        cfg.selectedIds   = cfg.selectedIds.filter(id => id !== video.id);
+        draft.selectedIds = draft.selectedIds.filter(id => id !== video.id);
+        if (!cfg.disabledIds.includes(video.id)) cfg.disabledIds.push(video.id);
+      }
       card.classList.toggle('enabled', cb.checked);
+      persistSave();
     });
 
     // Name edit
@@ -2136,7 +2145,6 @@ $('scan-btn').addEventListener('click', async () => {
     showToast('No videos found. Refresh the media manifest and try again.');
     return;
   }
-  cfg.selectedIds = [];
   buildCatalog(allLangSources[cfg.language] || []);
   adminVidLang = cfg.language;
   buildVidLangTabs();
@@ -2196,19 +2204,19 @@ $('theme-chk').addEventListener('change', e => {
 
 
 /* ══════════════════════════════════════════════════════════════════
-   ADMIN — SAVE / DISCARD
+   ADMIN — SAVE / RETURN
    ══════════════════════════════════════════════════════════════════ */
 
-function discardAdmin() {
+function returnAdmin() {
   applyAccent(cfg.accent);
   applyTheme(cfg.lightMode);
   showScreen('main');
   restoreAndRender();
 }
 
-$('panel-discard').addEventListener('click', discardAdmin);
+$('panel-return').addEventListener('click', returnAdmin);
 $('screen-admin').addEventListener('keydown', e => {
-  if (e.key === 'Escape') { e.preventDefault(); discardAdmin(); }
+  if (e.key === 'Escape') { e.preventDefault(); returnAdmin(); }
 });
 
 $('panel-save').addEventListener('click', () => {
@@ -2260,7 +2268,7 @@ $('admin-corner').addEventListener('keydown', e => {
   applyLogo(cfg.logoSrc);
   buildLangSwitcher();
   applyI18n();
-  if (loadInitialManifest() && allLangSources[cfg.language]?.length) {
+  if (loadInitialManifest() && cfg.language in allLangSources) {
     buildCatalog(allLangSources[cfg.language]);
   } else {
     loadFallbackCatalog();

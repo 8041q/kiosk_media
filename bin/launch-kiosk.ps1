@@ -1,15 +1,15 @@
 $ErrorActionPreference = 'Stop'
 
-$projectRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
-$manifestScript = Join-Path $projectRoot 'generate-media-manifest.ps1'
+$projectRoot = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
+$manifestScript = Join-Path $projectRoot 'bin\generate-media-manifest.ps1'
 & $manifestScript
 
-$serverScript = Join-Path $projectRoot 'serve-kiosk.ps1'
+$serverScript = Join-Path $projectRoot 'bin\serve-kiosk.ps1'
 $serverPort = 8765
 $serverUrl = "http://127.0.0.1:$serverPort/index.html"
-$pidFile = Join-Path $projectRoot '.kiosk-server.pid'
-$serverOutLog = Join-Path $projectRoot '.kiosk-server.out.log'
-$serverErrLog = Join-Path $projectRoot '.kiosk-server.err.log'
+$pidFile = Join-Path $projectRoot 'bin\.kiosk-server.pid'
+$serverOutLog = Join-Path $projectRoot 'logs\.kiosk-server.out.log'
+$serverErrLog = Join-Path $projectRoot 'logs\.kiosk-server.err.log'
 
 if (-not (Test-Path -LiteralPath $serverScript)) {
   throw "Local server script was not found: $serverScript"

@@ -1,6 +1,6 @@
 $ErrorActionPreference = 'Stop'
 
-$projectRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
+$projectRoot = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
 $mediaRoot   = Join-Path $projectRoot 'media'
 $manifestOut = Join-Path $mediaRoot 'manifest.js'
 $videoExts   = @('.mp4', '.webm', '.mov')

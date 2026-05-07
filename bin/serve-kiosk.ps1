@@ -6,7 +6,7 @@ param(
 $ErrorActionPreference = 'Stop'
 
 if (-not $RootPath) {
-  $RootPath = Split-Path -Parent $MyInvocation.MyCommand.Path
+  $RootPath = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
 }
 
 $resolvedRoot = (Resolve-Path -LiteralPath $RootPath).Path
