@@ -94,20 +94,57 @@ if (-not $serverRunning) {
   }
 
   if (-not $serverReady) {
-    throw "Kiosk server did not become ready at $serverUrl"
+      throw "Kiosk server did not become ready at $serverUrl"
+    }
   }
-}
 
-$firefoxPath = 'C:\Program Files\Mozilla Firefox\firefox.exe'
-if (-not (Test-Path $firefoxPath)) {
-  $firefoxCmd = Get-Command firefox.exe -ErrorAction SilentlyContinue
-  if ($firefoxCmd) {
-    $firefoxPath = $firefoxCmd.Source
+  function Resolve-FirefoxPath {
+    $candidatePaths = @()
+
+    if ($env:ProgramFiles) {
+      $candidatePaths += (Join-Path $env:ProgramFiles 'Mozilla Firefox\firefox.exe')
+    }
+
+    if (${env:ProgramFiles(x86)}) {
+      $candidatePaths += (Join-Path ${env:ProgramFiles(x86)} 'Mozilla Firefox\firefox.exe')
+    }
+
+    if ($env:LocalAppData) {
+      $candidatePaths += (Join-Path $env:LocalAppData 'Mozilla Firefox\firefox.exe')
+    }
+
+    foreach ($registryPath in @(
+      'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\firefox.exe',
+      'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\App Paths\firefox.exe',
+      'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\firefox.exe'
+    )) {
+      try {
+        $defaultValue = (Get-ItemProperty -Path $registryPath -ErrorAction Stop).'(default)'
+        if ($defaultValue) {
+          $candidatePaths += $defaultValue
+        }
+      } catch {
+        # Ignore missing registry keys.
+      }
+    }
+
+    $firefoxCmd = Get-Command firefox.exe -ErrorAction SilentlyContinue
+    if ($firefoxCmd -and $firefoxCmd.Source) {
+      $candidatePaths += $firefoxCmd.Source
+    }
+
+    foreach ($candidate in ($candidatePaths | Select-Object -Unique)) {
+      if ($candidate -and (Test-Path -LiteralPath $candidate)) {
+        return $candidate
+      }
+    }
+
+    return $null
   }
-}
 
-if (-not (Test-Path $firefoxPath)) {
-  throw 'Firefox executable was not found.'
-}
+  $firefoxPath = Resolve-FirefoxPath
+  if (-not $firefoxPath) {
+    throw "Firefox executable was not found. Install Mozilla Firefox, or add firefox.exe to PATH, then re-run launch-kiosk.cmd."
+  }
 
-Start-Process -FilePath $firefoxPath -WorkingDirectory $projectRoot -ArgumentList @('-kiosk', $serverUrl)
+  Start-Process -FilePath $firefoxPath -WorkingDirectory $projectRoot -ArgumentList @('-kiosk', $serverUrl)
