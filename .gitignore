@@ -8,6 +8,8 @@ yarn.lock
 .env.local
 .env.*.local
 .kiosk-server.pid
+.kiosk-browser.pid
+bin/.firefox-kiosk-profile/
 
 # IDE
 .vscode/

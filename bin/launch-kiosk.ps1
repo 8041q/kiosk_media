@@ -9,6 +9,7 @@ $serverPort = 8765
 $serverUrl = "http://127.0.0.1:$serverPort/index.html"
 $pidFile = Join-Path $projectRoot 'bin\.kiosk-server.pid'
 $browserPidFile = Join-Path $projectRoot 'bin\.kiosk-browser.pid'
+$kioskProfileDir = Join-Path $projectRoot 'bin\.firefox-kiosk-profile'
 $serverOutLog = Join-Path $projectRoot 'logs\.kiosk-server.out.log'
 $serverErrLog = Join-Path $projectRoot 'logs\.kiosk-server.err.log'
 
@@ -152,10 +153,28 @@ if (-not $serverRunning) {
     throw "Firefox executable was not found. Install Mozilla Firefox, or add firefox.exe to PATH, then re-run launch-kiosk.cmd."
   }
 
+  # Kill any leftover Firefox processes from a previous kiosk session before launching.
+  if (Test-Path -LiteralPath $browserPidFile) {
+    $stalePid = (Get-Content -LiteralPath $browserPidFile -Raw -ErrorAction SilentlyContinue).Trim()
+    if ($stalePid -match '^[0-9]+$') {
+      & taskkill /F /T /PID $stalePid 2>&1 | Out-Null
+    }
+  }
+  # Sweep for any remaining kiosk-URL firefox processes (catches orphaned child processes).
+  $escapedUrl = [Regex]::Escape($serverUrl)
+  Get-CimInstance Win32_Process -Filter "Name='firefox.exe'" -ErrorAction SilentlyContinue |
+    Where-Object { $_.CommandLine -and $_.CommandLine -match $escapedUrl } |
+    ForEach-Object { & taskkill /F /T /PID $_.ProcessId 2>&1 | Out-Null }
+
   Remove-Item -LiteralPath $browserPidFile -Force -ErrorAction SilentlyContinue
 
+  # Remove profile lock file left behind by a previous force-kill.
+  # Firefox silently exits in kiosk mode when it finds a stale lock, so we clear it first.
+  $profileLock = Join-Path $kioskProfileDir 'parent.lock'
+  Remove-Item -LiteralPath $profileLock -Force -ErrorAction SilentlyContinue
+
   $launchStartedAt = Get-Date
-  $browserProc = Start-Process -FilePath $firefoxPath -WorkingDirectory $projectRoot -ArgumentList @('-new-instance', '-kiosk', $serverUrl) -PassThru
+  $browserProc = Start-Process -FilePath $firefoxPath -WorkingDirectory $projectRoot -ArgumentList @('-new-instance', '-no-remote', '-profile', $kioskProfileDir, '-kiosk', $serverUrl) -PassThru
 
   Start-Sleep -Milliseconds 700
   $resolvedBrowserPid = $null

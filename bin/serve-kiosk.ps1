@@ -148,14 +148,10 @@ param(
 
 Start-Sleep -Milliseconds $DelayMs
 
-function Stop-ByPid {
+function Stop-ProcessTree {
   param([int]$PidToStop)
-  try {
-    Stop-Process -Id $PidToStop -Force -ErrorAction Stop
-    return $true
-  } catch {
-    return $false
-  }
+  $result = & taskkill /F /T /PID $PidToStop 2>&1
+  return ($LASTEXITCODE -eq 0)
 }
 
 $stoppedAnyBrowser = $false
@@ -164,7 +160,7 @@ try {
   if (Test-Path -LiteralPath $BrowserPidFilePath -PathType Leaf) {
     $rawPid = (Get-Content -LiteralPath $BrowserPidFilePath -Raw -ErrorAction SilentlyContinue).Trim()
     if ($rawPid -match '^[0-9]+$') {
-      if (Stop-ByPid -PidToStop ([int]$rawPid)) {
+      if (Stop-ProcessTree -PidToStop ([int]$rawPid)) {
         $stoppedAnyBrowser = $true
       }
     }
@@ -177,13 +173,13 @@ try {
       Where-Object { $_.CommandLine -and $_.CommandLine -match $escapedUrl }
 
     foreach ($proc in $kioskProcesses) {
-      if (Stop-ByPid -PidToStop ([int]$proc.ProcessId)) {
+      if (Stop-ProcessTree -PidToStop ([int]$proc.ProcessId)) {
         $stoppedAnyBrowser = $true
       }
     }
   }
 
-  Stop-Process -Id $ServerPid -Force -ErrorAction SilentlyContinue
+  & taskkill /F /T /PID $ServerPid 2>&1 | Out-Null
 } finally {
   Remove-Item -LiteralPath $SelfScriptPath -Force -ErrorAction SilentlyContinue
 }
