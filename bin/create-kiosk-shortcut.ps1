@@ -1,8 +1,8 @@
 $ErrorActionPreference = 'Stop'
 
 $projectRoot = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
-$launcherPath = Join-Path $projectRoot 'kiosk.exe'
-$shortcutPath = Join-Path $projectRoot 'kiosk.exe.lnk'
+$launcherPath = Join-Path $projectRoot 'Kiosk.exe'
+$shortcutPath = Join-Path $projectRoot 'Kiosk.exe.lnk'
 $iconPath = Join-Path $projectRoot 'bin\favicon.ico'
 
 if (-not (Test-Path -LiteralPath $launcherPath)) {
