@@ -2056,7 +2056,7 @@ function openVideo(record, tileIdx) {
   v.addEventListener('enterpictureinpicture', () => {
     document.exitPictureInPicture().catch(() => {});
   });
-  screen.addEventListener('contextmenu', e => e.preventDefault());
+  document.addEventListener('contextmenu', e => e.preventDefault());
 
   // ── Buffering states ──
   v.addEventListener('canplay',  () => $('player-spinner').classList.remove('active'));
@@ -2496,6 +2496,11 @@ $('admin-corner').addEventListener('keydown', e => {
   renderMainScreen();
   showScreen('main');
 })();
+
+// ── Block multi-touch gestures (OS edge-swipe, task switcher) ──
+document.addEventListener('touchstart', e => {
+  if (e.touches.length > 1) e.preventDefault();
+}, { passive: false });
 
 </script>
 </body>
