@@ -1,11 +1,10 @@
 ﻿window.KIOSK_MEDIA_MANIFEST = {
     "en":  [
-               "media/en/video1.mp4",
-               "media/en/video2.mp4",
-               "media/en/video3.mp4"
+
            ],
     "pt":  [
-
+               "media/pt-pt/Fabrica.mp4",
+               "media/pt-pt/sam%E8%91%A1%E8%90%84%E7%89%99%E8%AF%AD.mp4"
            ],
     "es":  [
 

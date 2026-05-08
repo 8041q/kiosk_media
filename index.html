@@ -197,15 +197,92 @@ html, body {
 }
 
 /* Language switcher — visitor-facing, right of header */
-#lang-switcher { flex-shrink: 0; margin-left: auto; }
-#lang-select {
-  background: var(--surface2); border: 1px solid var(--border); color: var(--text);
-  border-radius: var(--radius); padding: 7px 14px;
-  font-size: 0.88rem; font-weight: 700; font-family: inherit;
-  cursor: pointer; transition: border-color 0.14s;
-  -webkit-appearance: auto; appearance: auto;
+#lang-switcher {
+  flex-shrink: 0;
+  margin-left: auto;
+  position: relative;
 }
-#lang-select:focus { border-color: var(--accent); outline: none; }
+#lang-select {
+  width: 56px;
+  height: 56px;
+  min-width: 56px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.08);
+  color: var(--text-sub);
+  border-radius: 999px;
+  padding: 0;
+  cursor: pointer;
+  transition: background 0.14s, border-color 0.14s, color 0.14s;
+}
+body.light #lang-select {
+  background: rgba(0,0,0,0.03);
+  border-color: rgba(0,0,0,0.08);
+}
+#lang-select:hover {
+  background: rgba(255,255,255,0.06);
+  color: var(--text);
+}
+body.light #lang-select:hover {
+  background: rgba(0,0,0,0.05);
+}
+#lang-select:focus {
+  border-color: var(--accent);
+  outline: none;
+}
+#lang-select svg {
+  width: 24px;
+  height: 24px;
+  fill: currentColor;
+}
+#lang-menu {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  min-width: 180px;
+  display: none;
+  flex-direction: column;
+  gap: 0;
+  padding: 6px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.28);
+  z-index: 40;
+}
+#lang-menu.open {
+  display: flex;
+}
+.lang-menu-item {
+  min-height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  width: 100%;
+  padding: 0 18px;
+  border: 1px solid transparent;
+  border-radius: 14px;
+  background: transparent;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  text-align: left;
+}
+.lang-menu-item:hover,
+.lang-menu-item:focus {
+  background: color-mix(in srgb, var(--text) 6%, transparent);
+  border-color: var(--accent);
+  outline: none;
+}
+.lang-menu-item.active {
+  background: transparent;
+  border-color: color-mix(in srgb, var(--accent) 70%, var(--border));
+  color: var(--text);
+}
 
 /* Tile grid */
 #tile-grid {
@@ -691,6 +768,8 @@ body.light #logo-preview-box {
 #vid-lang-tabs {
   display: flex; align-items: center; justify-content: space-between;
   gap: 16px; margin-bottom: 16px; padding: 14px 16px;
+  width: fit-content;
+  max-width: 100%;
   background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
 }
 .vid-lang-copy { min-width: 0; }
@@ -701,10 +780,18 @@ body.light #logo-preview-box {
   display: block; margin-top: 4px; font-size: 0.82rem; color: var(--text-sub);
 }
 .vid-lang-select {
-  min-width: 220px; max-width: 320px; width: 100%;
+  min-width: 150px;
+  max-width: 210px;
+  width: auto;
   background: var(--surface2); border: 1px solid var(--border); color: var(--text);
   border-radius: var(--radius-sm); padding: 11px 14px;
   font-size: 0.92rem; font-weight: 700; font-family: inherit;
+}
+#vid-lang-select-admin {
+  width: 180px;
+  min-width: 180px;
+  max-width: 180px;
+  flex: 0 0 180px;
 }
 .vid-lang-select:focus { border-color: var(--accent); outline: none; }
 .vac-thumb-shimmer.hidden { display: none; }
@@ -719,10 +806,18 @@ body.light #logo-preview-box {
 
 @media (max-width: 760px) {
   #vid-lang-tabs {
+    width: 100%;
     flex-direction: column; align-items: stretch;
   }
   .vid-lang-select {
     max-width: none;
+    width: 100%;
+  }
+  #vid-lang-select-admin {
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+    flex: 1 1 auto;
   }
   #tile-grid.view-list-comfort,
   #tile-grid.view-list-compact {
@@ -1006,10 +1101,10 @@ const VIEW_MODES = ['cards-medium', 'cards-large', 'cards-small', 'list-comfort'
 
 const LANGUAGES = [
   { code: 'en', label: 'English',   folder: 'en'    },
+  { code: 'zh', label: '中文',       folder: 'zh'    },
   { code: 'pt', label: 'Português', folder: 'pt-pt' },
   { code: 'es', label: 'Español',   folder: 'sp'    },
   { code: 'fr', label: 'Français',  folder: 'fr'    },
-  { code: 'zh', label: '中文',       folder: 'zh'    },
 ];
 
 const UI_STRINGS = {
@@ -1053,7 +1148,7 @@ const UI_STRINGS = {
     openAdminToConfigure:'Abra as configurações de administrador para configurar sua biblioteca de vídeos.',
     displayedMedia:'Mídia exibida', languageLibrary:'Biblioteca de idiomas', chooseLanguageFolder:'Escolha qual pasta de idioma deseja gerenciar.',
     displayName:'Nome de exibição',
-    noVideosLoaded:'Nenhum vídeo carregado. Use o botão Escanear (canto superior direito) para escanear a pasta de mídia.',
+    noVideosLoaded:'Nenhum vídeo carregado. Use o botão Scan (canto superior direito) para escanear a pasta de mídia.',
     noLogoSet:'Nenhum logotipo definido', uploadLogo:'Enviar logotipo', remove:'Remover',
     logoHint:'Carregado automaticamente de assets/logo.png (também tenta .jpg e .svg). Envie abaixo para substituir.',
     accentNote:'Aplica-se a botões e contornos de foco. Os fundos permanecem neutros.',
@@ -1061,7 +1156,7 @@ const UI_STRINGS = {
     newPassword:'Nova senha', confirmPassword:'Confirmar senha',
     leaveBlankKeepCurrent:'Deixe em branco para manter a atual', repeatNewPassword:'Repita a nova senha',
     pwMin:'A senha deve ter pelo menos 4 caracteres.', pwMismatch:'As senhas não coincidem.',
-    scan:'Escanear...', scanning:'Escaneando...',
+    scan:'Scan...', scanning:'Scan...',
     noVideosFound:'Nenhum vídeo encontrado. Atualize o manifesto de mídia e tente novamente.',
     videosFoundAcross:'{count} vídeos encontrados em {langs} idiomas', videosFound:'{count} vídeos encontrados',
     pickImageFile:'Selecione um arquivo de imagem.', imageUnder3mb:'A imagem deve ter menos de 3 MB.',
@@ -1304,9 +1399,7 @@ function applyI18n() {
     const key = el.dataset.i18nPh;
     el.setAttribute('placeholder', t(key));
   });
-  // Sync language dropdown
-  const langSel = $('lang-select');
-  if (langSel) langSel.value = cfg.language;
+  syncLangSwitcher();
   const adminView = $('view-mode');
   if (adminView) adminView.value = draft.viewMode;
   // html lang attribute
@@ -1855,17 +1948,91 @@ function initRovingFocus(grid) {
 
 function buildLangSwitcher() {
   const sw = $('lang-switcher'); sw.innerHTML = '';
-  const sel = document.createElement('select');
-  sel.id = 'lang-select';
-  sel.setAttribute('aria-label', 'Language');
-  LANGUAGES.forEach(({ code, label }) => {
-    const opt = document.createElement('option');
-    opt.value = code; opt.textContent = label;
-    if (code === cfg.language) opt.selected = true;
-    sel.appendChild(opt);
+  sw.innerHTML = `
+    <button id="lang-select" type="button" aria-label="Language" aria-haspopup="true" aria-expanded="false">
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <path d="M12.87 15.07l-2.54-2.58.03-.03A17.52 17.52 0 0014.07 6H17V4h-7V2h-2v2H1v2h11.17c-.41 1.18-1.12 2.3-2.1 3.29-.64-.71-1.18-1.5-1.62-2.35H6.37c.53 1.34 1.35 2.59 2.43 3.69l-5.09 5.02L5.12 17l5.12-5.12 3.19 3.19.44-1.99zM18.5 10h-2L12 22h2l1.12-3h4.75L21 22h2l-4.5-12zm-2.63 7l1.76-4.67L19.37 17h-3.5z"/>
+      </svg>
+    </button>
+    <div id="lang-menu" role="menu" aria-label="Language"></div>`;
+
+  const trigger = $('lang-select');
+  const menu = $('lang-menu');
+
+  menu.innerHTML = LANGUAGES.map(({ code, label }) => `
+    <button class="lang-menu-item${code === cfg.language ? ' active' : ''}" type="button" role="menuitemradio" aria-checked="${code === cfg.language}" data-lang-code="${code}">
+      ${escHtml(label)}
+    </button>`).join('');
+
+  trigger.addEventListener('click', e => {
+    e.stopPropagation();
+    toggleLangMenu();
   });
-  sel.addEventListener('change', () => applyLanguage(sel.value, true));
-  sw.appendChild(sel);
+
+  trigger.addEventListener('keydown', e => {
+    if (e.key === 'ArrowDown' || e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      openLangMenu();
+      menu.querySelector('.lang-menu-item.active, .lang-menu-item')?.focus();
+    }
+  });
+
+  menu.querySelectorAll('.lang-menu-item').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      closeLangMenu();
+      applyLanguage(btn.dataset.langCode, true);
+    });
+  });
+
+  menu.addEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      closeLangMenu();
+      trigger.focus();
+    }
+  });
+
+  syncLangSwitcher();
+}
+
+function syncLangSwitcher() {
+  const trigger = $('lang-select');
+  const menu = $('lang-menu');
+  const current = LANGUAGES.find(({ code }) => code === cfg.language);
+  if (trigger) {
+    trigger.setAttribute('aria-label', current ? `Language: ${current.label}` : 'Language');
+    trigger.setAttribute('title', current ? current.label : 'Language');
+  }
+  if (!menu) return;
+  menu.querySelectorAll('.lang-menu-item').forEach(btn => {
+    const active = btn.dataset.langCode === cfg.language;
+    btn.classList.toggle('active', active);
+    btn.setAttribute('aria-checked', String(active));
+  });
+}
+
+function openLangMenu() {
+  const trigger = $('lang-select');
+  const menu = $('lang-menu');
+  if (!trigger || !menu) return;
+  menu.classList.add('open');
+  trigger.setAttribute('aria-expanded', 'true');
+}
+
+function closeLangMenu() {
+  const trigger = $('lang-select');
+  const menu = $('lang-menu');
+  if (!trigger || !menu) return;
+  menu.classList.remove('open');
+  trigger.setAttribute('aria-expanded', 'false');
+}
+
+function toggleLangMenu() {
+  const menu = $('lang-menu');
+  if (!menu) return;
+  if (menu.classList.contains('open')) closeLangMenu();
+  else openLangMenu();
 }
 
 function buildAdminLangGrid() {}
@@ -2508,6 +2675,17 @@ $('admin-corner').addEventListener('keydown', e => {
 document.addEventListener('touchstart', e => {
   if (e.touches.length > 1) e.preventDefault();
 }, { passive: false });
+
+document.addEventListener('pointerdown', e => {
+  const switcher = $('lang-switcher');
+  const menu = $('lang-menu');
+  if (!switcher || !menu || !menu.classList.contains('open')) return;
+  if (!switcher.contains(e.target)) closeLangMenu();
+});
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeLangMenu();
+});
 
 </script>
 </body>
