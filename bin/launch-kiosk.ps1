@@ -8,6 +8,7 @@ $serverScript = Join-Path $projectRoot 'bin\serve-kiosk.ps1'
 $serverPort = 8765
 $serverUrl = "http://127.0.0.1:$serverPort/index.html"
 $pidFile = Join-Path $projectRoot 'bin\.kiosk-server.pid'
+$browserPidFile = Join-Path $projectRoot 'bin\.kiosk-browser.pid'
 $serverOutLog = Join-Path $projectRoot 'logs\.kiosk-server.out.log'
 $serverErrLog = Join-Path $projectRoot 'logs\.kiosk-server.err.log'
 
@@ -15,13 +16,14 @@ if (-not (Test-Path -LiteralPath $serverScript)) {
   throw "Local server script was not found: $serverScript"
 }
 
-function Test-ServerSupportsScanApi {
+function Test-ServerSupportsApi {
   param(
-    [string]$BaseUrl
+    [string]$BaseUrl,
+    [string]$ApiPath
   )
 
   try {
-    Invoke-WebRequest -Uri "$BaseUrl/api/scan" -Method Post -UseBasicParsing -TimeoutSec 2 | Out-Null
+    Invoke-WebRequest -Uri "$BaseUrl$ApiPath" -Method Post -UseBasicParsing -TimeoutSec 2 | Out-Null
     return $true
   } catch {
     return $false
@@ -36,9 +38,12 @@ if (Test-Path -LiteralPath $pidFile) {
     if ($proc) {
       $serverRunning = $true
 
-      # If the currently running server doesn't expose runtime scan API,
-      # recycle it so newly added media can be discovered without full kiosk restarts.
-      if (-not (Test-ServerSupportsScanApi -BaseUrl "http://127.0.0.1:$serverPort")) {
+      $baseUrl = "http://127.0.0.1:$serverPort"
+      $supportsScanApi = Test-ServerSupportsApi -BaseUrl $baseUrl -ApiPath '/api/scan'
+      $supportsExitApi = Test-ServerSupportsApi -BaseUrl $baseUrl -ApiPath '/api/exit'
+
+      # Recycle stale server builds that do not expose current runtime APIs.
+      if (-not ($supportsScanApi -and $supportsExitApi)) {
         try {
           Stop-Process -Id $proc.Id -Force -ErrorAction Stop
         } catch {
@@ -147,4 +152,28 @@ if (-not $serverRunning) {
     throw "Firefox executable was not found. Install Mozilla Firefox, or add firefox.exe to PATH, then re-run launch-kiosk.cmd."
   }
 
-  Start-Process -FilePath $firefoxPath -WorkingDirectory $projectRoot -ArgumentList @('-kiosk', $serverUrl)
+  Remove-Item -LiteralPath $browserPidFile -Force -ErrorAction SilentlyContinue
+
+  $launchStartedAt = Get-Date
+  $browserProc = Start-Process -FilePath $firefoxPath -WorkingDirectory $projectRoot -ArgumentList @('-new-instance', '-kiosk', $serverUrl) -PassThru
+
+  Start-Sleep -Milliseconds 700
+  $resolvedBrowserPid = $null
+
+  $kioskProc = Get-CimInstance Win32_Process -Filter "Name='firefox.exe'" -ErrorAction SilentlyContinue |
+    Where-Object {
+      $_.CommandLine -and
+      $_.CommandLine -match [Regex]::Escape($serverUrl)
+    } |
+    Sort-Object CreationDate -Descending |
+    Select-Object -First 1
+
+  if ($kioskProc) {
+    $resolvedBrowserPid = [int]$kioskProc.ProcessId
+  } elseif ($browserProc -and -not $browserProc.HasExited) {
+    $resolvedBrowserPid = [int]$browserProc.Id
+  }
+
+  if ($null -ne $resolvedBrowserPid) {
+    Set-Content -LiteralPath $browserPidFile -Value $resolvedBrowserPid -Encoding ASCII
+  }

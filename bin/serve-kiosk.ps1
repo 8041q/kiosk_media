@@ -12,6 +12,7 @@ if (-not $RootPath) {
 $resolvedRoot = (Resolve-Path -LiteralPath $RootPath).Path
 $prefix = "http://127.0.0.1:$Port/"
 $manifestScriptPath = Join-Path $resolvedRoot 'bin\generate-media-manifest.ps1'
+$browserPidFilePath = Join-Path $resolvedRoot 'bin\.kiosk-browser.pid'
 
 $mimeTypes = @{
   '.html' = 'text/html; charset=utf-8'
@@ -105,6 +106,120 @@ function Handle-ScanRequest {
   }
 }
 
+function Get-PidFromFile {
+  param(
+    [Parameter(Mandatory = $true)]
+    [string]$PidFilePath
+  )
+
+  if (-not (Test-Path -LiteralPath $PidFilePath -PathType Leaf)) {
+    return $null
+  }
+
+  $rawPid = (Get-Content -LiteralPath $PidFilePath -Raw -ErrorAction SilentlyContinue).Trim()
+  if (-not ($rawPid -match '^[0-9]+$')) {
+    Remove-Item -LiteralPath $PidFilePath -Force -ErrorAction SilentlyContinue
+    return $null
+  }
+
+  return [int]$rawPid
+}
+
+function Start-DetachedShutdownWorker {
+  param(
+    [Parameter(Mandatory = $true)]
+    [int]$ServerPid,
+    [Parameter(Mandatory = $true)]
+    [string]$BrowserPidFilePath,
+    [Parameter(Mandatory = $true)]
+    [string]$KioskUrl,
+    [int]$DelayMs = 1400
+  )
+
+  $workerScriptPath = Join-Path $env:TEMP ("kiosk-shutdown-{0}.ps1" -f [Guid]::NewGuid().ToString('N'))
+  $workerScript = @'
+param(
+  [int]$ServerPid,
+  [string]$BrowserPidFilePath,
+  [string]$KioskUrl,
+  [int]$DelayMs,
+  [string]$SelfScriptPath
+)
+
+Start-Sleep -Milliseconds $DelayMs
+
+function Stop-ByPid {
+  param([int]$PidToStop)
+  try {
+    Stop-Process -Id $PidToStop -Force -ErrorAction Stop
+    return $true
+  } catch {
+    return $false
+  }
+}
+
+$stoppedAnyBrowser = $false
+
+try {
+  if (Test-Path -LiteralPath $BrowserPidFilePath -PathType Leaf) {
+    $rawPid = (Get-Content -LiteralPath $BrowserPidFilePath -Raw -ErrorAction SilentlyContinue).Trim()
+    if ($rawPid -match '^[0-9]+$') {
+      if (Stop-ByPid -PidToStop ([int]$rawPid)) {
+        $stoppedAnyBrowser = $true
+      }
+    }
+    Remove-Item -LiteralPath $BrowserPidFilePath -Force -ErrorAction SilentlyContinue
+  }
+
+  if (-not $stoppedAnyBrowser) {
+    $escapedUrl = [Regex]::Escape($KioskUrl)
+    $kioskProcesses = Get-CimInstance Win32_Process -Filter "Name='firefox.exe'" -ErrorAction SilentlyContinue |
+      Where-Object { $_.CommandLine -and $_.CommandLine -match $escapedUrl }
+
+    foreach ($proc in $kioskProcesses) {
+      if (Stop-ByPid -PidToStop ([int]$proc.ProcessId)) {
+        $stoppedAnyBrowser = $true
+      }
+    }
+  }
+
+  Stop-Process -Id $ServerPid -Force -ErrorAction SilentlyContinue
+} finally {
+  Remove-Item -LiteralPath $SelfScriptPath -Force -ErrorAction SilentlyContinue
+}
+'@
+
+  Set-Content -LiteralPath $workerScriptPath -Value $workerScript -Encoding ASCII
+  Start-Process -FilePath 'powershell.exe' -WindowStyle Hidden -ArgumentList @(
+    '-NoProfile',
+    '-ExecutionPolicy', 'Bypass',
+    '-File', $workerScriptPath,
+    '-ServerPid', $ServerPid,
+    '-BrowserPidFilePath', $BrowserPidFilePath,
+    '-KioskUrl', $KioskUrl,
+    '-DelayMs', $DelayMs,
+    '-SelfScriptPath', $workerScriptPath
+  ) | Out-Null
+}
+
+function Handle-ExitRequest {
+  param(
+    [Parameter(Mandatory = $true)]
+    $Context
+  )
+
+  $browserPid = Get-PidFromFile -PidFilePath $browserPidFilePath
+
+  Send-JsonResponse -Context $Context -StatusCode 200 -Payload @{
+    ok = $true
+    browserPid = $browserPid
+    shuttingDown = $true
+    stoppedAt = [DateTime]::UtcNow.ToString('o')
+  }
+
+  Start-DetachedShutdownWorker -ServerPid $PID -BrowserPidFilePath $browserPidFilePath -KioskUrl "http://127.0.0.1:$Port/index.html"
+}
+
 try {
   while ($listener.IsListening) {
     try {
@@ -118,6 +233,18 @@ try {
     if ($requestPath -eq 'api/scan') {
       if ($context.Request.HttpMethod -eq 'POST') {
         Handle-ScanRequest -Context $context
+      } else {
+        Send-JsonResponse -Context $context -StatusCode 405 -Payload @{
+          ok = $false
+          error = 'Method Not Allowed'
+        }
+      }
+      continue
+    }
+
+    if ($requestPath -eq 'api/exit') {
+      if ($context.Request.HttpMethod -eq 'POST') {
+        Handle-ExitRequest -Context $context
       } else {
         Send-JsonResponse -Context $context -StatusCode 405 -Payload @{
           ok = $false

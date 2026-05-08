@@ -2,6 +2,8 @@
 
 A fullscreen kiosk application for displaying media content in exhibitions. Built with HTML5, CSS3, and JavaScript, running on Firefox in kiosk mode with multilingual support.
 
+Currently only works on Windows. Linux compatibility will be the next implementation.
+
 ## Features
 
 - **Fullscreen Kiosk Mode**: Runs as a dedicated exhibition display
@@ -106,6 +108,9 @@ kiosk_media/
 
 ## Troubleshooting
 
+### Admin mode/Settings
+- Password: 1234
+
 ### Firefox won't start
 - Ensure Firefox is installed in a standard location (Program Files, AppData, etc.)
 - Check that no other kiosk instance is running on port 8765
@@ -122,7 +127,13 @@ kiosk_media/
 
 ## Shutdown
 
-Not yet implemented
+Use the **Admin → Exit Kiosk** button for a clean shutdown.
+
+- It closes the kiosk Firefox window launched by this project.
+- It stops the local kiosk PowerShell server process.
+- This avoids orphan PowerShell processes after closing the browser.
+
+If you close Firefox manually, the local server process may keep running. In that case, launch again and use **Admin → Exit Kiosk**.
 
 ## License
 
