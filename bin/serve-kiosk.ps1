@@ -13,6 +13,8 @@ $resolvedRoot = (Resolve-Path -LiteralPath $RootPath).Path
 $prefix = "http://127.0.0.1:$Port/"
 $manifestScriptPath = Join-Path $resolvedRoot 'bin\generate-media-manifest.ps1'
 $browserPidFilePath = Join-Path $resolvedRoot 'bin\.kiosk-browser.pid'
+$githubUrl = 'https://github.com/8041q/kiosk_media'
+$issuesUrl = 'https://github.com/8041q/kiosk_media/issues'
 
 $mimeTypes = @{
   '.html' = 'text/html; charset=utf-8'
@@ -216,6 +218,45 @@ function Handle-ExitRequest {
   Start-DetachedShutdownWorker -ServerPid $PID -BrowserPidFilePath $browserPidFilePath -KioskUrl "http://127.0.0.1:$Port/index.html"
 }
 
+function Handle-OpenExternalRequest {
+  param(
+    [Parameter(Mandatory = $true)]
+    $Context,
+    [Parameter(Mandatory = $true)]
+    [string]$Target
+  )
+
+  $targetUrl = switch ($Target) {
+    'github' { $githubUrl }
+    'issues' { $issuesUrl }
+    default { $null }
+  }
+
+  if (-not $targetUrl) {
+    Send-JsonResponse -Context $Context -StatusCode 404 -Payload @{
+      ok = $false
+      error = 'Unknown external target.'
+    }
+    return
+  }
+
+  try {
+    Start-Process $targetUrl | Out-Null
+    Send-JsonResponse -Context $Context -StatusCode 200 -Payload @{
+      ok = $true
+      target = $Target
+      url = $targetUrl
+      openedAt = [DateTime]::UtcNow.ToString('o')
+    }
+  } catch {
+    Send-JsonResponse -Context $Context -StatusCode 500 -Payload @{
+      ok = $false
+      error = $_.Exception.Message
+      target = $Target
+    }
+  }
+}
+
 try {
   while ($listener.IsListening) {
     try {
@@ -241,6 +282,30 @@ try {
     if ($requestPath -eq 'api/exit') {
       if ($context.Request.HttpMethod -eq 'POST') {
         Handle-ExitRequest -Context $context
+      } else {
+        Send-JsonResponse -Context $context -StatusCode 405 -Payload @{
+          ok = $false
+          error = 'Method Not Allowed'
+        }
+      }
+      continue
+    }
+
+    if ($requestPath -eq 'api/open-github') {
+      if ($context.Request.HttpMethod -eq 'POST') {
+        Handle-OpenExternalRequest -Context $context -Target 'github'
+      } else {
+        Send-JsonResponse -Context $context -StatusCode 405 -Payload @{
+          ok = $false
+          error = 'Method Not Allowed'
+        }
+      }
+      continue
+    }
+
+    if ($requestPath -eq 'api/open-issues') {
+      if ($context.Request.HttpMethod -eq 'POST') {
+        Handle-OpenExternalRequest -Context $context -Target 'issues'
       } else {
         Send-JsonResponse -Context $context -StatusCode 405 -Payload @{
           ok = $false
