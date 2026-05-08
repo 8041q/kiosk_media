@@ -1,3 +1,20 @@
+<p align="center">
+  <img src=".\bin\favicon.jpg" alt="Kiosk logo" width="220" />
+</p>
+
+<div align="center">
+
+[![License](https://img.shields.io/badge/License-AGPL)](https://www.gnu.org/licenses/agpl-3.0.en.html)
+[![Stars](https://img.shields.io/github/stars/8041q/kiosk_media?style=flat)](https://github.com/8041q/kiosk_media/stargazers)
+[![Issues](https://img.shields.io/github/issues/8041q/kiosk_media)](https://github.com/8041q/kiosk_media/issues)
+
+</div>
+
+### Kiosk — Portable
+<p align="center"><em>Translate DOCX, XLSX and PDF into languages while preserving layout, styles, and images.</em></p>
+
+---
+
 # Exhibition Kiosk
 
 A fullscreen kiosk application for displaying media content in exhibitions. Built with HTML5, CSS3, and JavaScript, running on Firefox in kiosk mode with multilingual support.
