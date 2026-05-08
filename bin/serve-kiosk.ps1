@@ -13,6 +13,7 @@ $resolvedRoot = (Resolve-Path -LiteralPath $RootPath).Path
 $prefix = "http://127.0.0.1:$Port/"
 $manifestScriptPath = Join-Path $resolvedRoot 'bin\generate-media-manifest.ps1'
 $browserPidFilePath = Join-Path $resolvedRoot 'bin\.kiosk-browser.pid'
+$configFilePath     = Join-Path $resolvedRoot 'bin\kiosk-config.json'
 $githubUrl = 'https://github.com/8041q/kiosk_media'
 $issuesUrl = 'https://github.com/8041q/kiosk_media/issues'
 
@@ -200,6 +201,57 @@ try {
   ) | Out-Null
 }
 
+function Handle-ConfigGetRequest {
+  param(
+    [Parameter(Mandatory = $true)]
+    $Context
+  )
+
+  if (Test-Path -LiteralPath $configFilePath -PathType Leaf) {
+    try {
+      $json = Get-Content -LiteralPath $configFilePath -Raw -Encoding UTF8
+      # Validate it is parseable before sending
+      $null = $json | ConvertFrom-Json
+      $bytes = [System.Text.Encoding]::UTF8.GetBytes($json)
+      Send-HttpResponse -Context $Context -StatusCode 200 -ContentType 'application/json; charset=utf-8' -Bytes $bytes
+    } catch {
+      Send-JsonResponse -Context $Context -StatusCode 500 -Payload @{ ok = $false; error = $_.Exception.Message }
+    }
+  } else {
+    # No config yet — return empty object so the app uses its defaults
+    $bytes = [System.Text.Encoding]::UTF8.GetBytes('{}')
+    Send-HttpResponse -Context $Context -StatusCode 200 -ContentType 'application/json; charset=utf-8' -Bytes $bytes
+  }
+}
+
+function Handle-ConfigSaveRequest {
+  param(
+    [Parameter(Mandatory = $true)]
+    $Context
+  )
+
+  try {
+    $reader = New-Object System.IO.StreamReader($Context.Request.InputStream, [System.Text.Encoding]::UTF8)
+    $body   = $reader.ReadToEnd()
+    $reader.Close()
+
+    # Validate JSON before writing
+    $null = $body | ConvertFrom-Json
+
+    # Ensure parent directory exists
+    $dir = Split-Path -Parent $configFilePath
+    if (-not (Test-Path -LiteralPath $dir -PathType Container)) {
+      New-Item -ItemType Directory -Path $dir -Force | Out-Null
+    }
+
+    [System.IO.File]::WriteAllText($configFilePath, $body, [System.Text.Encoding]::UTF8)
+
+    Send-JsonResponse -Context $Context -StatusCode 200 -Payload @{ ok = $true }
+  } catch {
+    Send-JsonResponse -Context $Context -StatusCode 400 -Payload @{ ok = $false; error = $_.Exception.Message }
+  }
+}
+
 function Handle-ExitRequest {
   param(
     [Parameter(Mandatory = $true)]
@@ -266,6 +318,20 @@ try {
     }
 
     $requestPath = [System.Uri]::UnescapeDataString($context.Request.Url.AbsolutePath.TrimStart('/'))
+
+    if ($requestPath -eq 'api/config') {
+      if ($context.Request.HttpMethod -eq 'GET') {
+        Handle-ConfigGetRequest -Context $context
+      } elseif ($context.Request.HttpMethod -eq 'POST') {
+        Handle-ConfigSaveRequest -Context $context
+      } else {
+        Send-JsonResponse -Context $context -StatusCode 405 -Payload @{
+          ok = $false
+          error = 'Method Not Allowed'
+        }
+      }
+      continue
+    }
 
     if ($requestPath -eq 'api/scan') {
       if ($context.Request.HttpMethod -eq 'POST') {

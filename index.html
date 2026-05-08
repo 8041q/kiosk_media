@@ -952,7 +952,52 @@ body.light #logo-preview-box {
 /* Security section */
 .pw-fields { display: flex; flex-direction: column; gap: 12px; max-width: 400px; }
 
+/* On-screen keyboard */
+#osk-overlay {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 10020;
+  display: none;
+  padding: 12px 14px 16px;
+  background: linear-gradient(to top, rgba(0,0,0,0.94), rgba(0,0,0,0.72));
+  border-top: 1px solid var(--border);
+}
+#osk-overlay.osk-visible { display: block; }
+
+#osk-container {
+  max-width: 960px;
+  margin: 0 auto;
+}
+
+#osk-container.hg-theme-default {
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 10px;
+}
+
+#osk-container .hg-button {
+  background: var(--surface2);
+  color: var(--text);
+  border-bottom: 1px solid var(--border);
+  box-shadow: none;
+}
+
+#osk-container .hg-button.hg-standardBtn[data-skbtn="{enter}"],
+#osk-container .hg-button.hg-standardBtn[data-skbtn="{close}"] {
+  background: var(--accent);
+  color: var(--accent-text);
+  font-weight: 700;
+}
+
+#osk-container .hg-button:active,
+#osk-container .hg-button.hg-activeButton {
+  opacity: 0.82;
+}
+
   </style>
+  <link rel="stylesheet" href="assets/simple-keyboard.css" />
 </head>
 <body>
 
@@ -1235,8 +1280,14 @@ body.light #logo-preview-box {
 <!-- Toast -->
 <div id="toast" role="status" aria-live="polite"></div>
 
+<!-- On-screen keyboard -->
+<div id="osk-overlay" aria-hidden="true">
+  <div id="osk-container" class="simple-keyboard"></div>
+</div>
+
 
 <script id="media-manifest-script" src="media/manifest.js"></script>
+<script src="assets/simple-keyboard.js"></script>
 <script>
 'use strict';
 
@@ -1532,22 +1583,32 @@ let adminVidLang    = 'en';
 
 const LS_KEY = 'kiosk_v3';
 
-function persistLoad() {
+async function persistLoad() {
+  let s = null;
   try {
-    const raw = localStorage.getItem(LS_KEY);
-    if (!raw) return;
-    const s = JSON.parse(raw);
-    if (s.password)                       cfg.password     = s.password;
-    if (s.accent)                         cfg.accent       = s.accent;
-    if (typeof s.lightMode === 'boolean') cfg.lightMode    = s.lightMode;
-    if (s.logoSrc)                        cfg.logoSrc      = s.logoSrc;
-    if (Array.isArray(s.selectedIds))     cfg.selectedIds  = s.selectedIds;
-    if (Array.isArray(s.disabledIds))     cfg.disabledIds  = s.disabledIds;
-    if (s.videoVolumes && typeof s.videoVolumes === 'object') cfg.videoVolumes = s.videoVolumes;
-    if (s.videoTitles  && typeof s.videoTitles  === 'object') cfg.videoTitles  = s.videoTitles;
-    if (s.language && UI_STRINGS[s.language]) cfg.language = s.language;
-    if (s.viewMode && VIEW_MODES.includes(s.viewMode)) cfg.viewMode = s.viewMode;
+    const res = await fetch('/api/config');
+    if (res.ok) s = await res.json();
   } catch (_) {}
+
+  // Fallback to localStorage if server not available
+  if (!s || !Object.keys(s).length) {
+    try {
+      const raw = localStorage.getItem(LS_KEY);
+      if (raw) s = JSON.parse(raw);
+    } catch (_) {}
+  }
+
+  if (!s) return;
+  if (s.password)                       cfg.password     = s.password;
+  if (s.accent)                         cfg.accent       = s.accent;
+  if (typeof s.lightMode === 'boolean') cfg.lightMode    = s.lightMode;
+  if (s.logoSrc)                        cfg.logoSrc      = s.logoSrc;
+  if (Array.isArray(s.selectedIds))     cfg.selectedIds  = s.selectedIds;
+  if (Array.isArray(s.disabledIds))     cfg.disabledIds  = s.disabledIds;
+  if (s.videoVolumes && typeof s.videoVolumes === 'object') cfg.videoVolumes = s.videoVolumes;
+  if (s.videoTitles  && typeof s.videoTitles  === 'object') cfg.videoTitles  = s.videoTitles;
+  if (s.language && UI_STRINGS[s.language]) cfg.language = s.language;
+  if (s.viewMode && VIEW_MODES.includes(s.viewMode)) cfg.viewMode = s.viewMode;
 }
 
 function persistSave() {
@@ -1557,6 +1618,13 @@ function persistSave() {
     videoVolumes: cfg.videoVolumes, videoTitles: cfg.videoTitles, language: cfg.language,
     viewMode: cfg.viewMode,
   };
+  // Try server first (fire-and-forget)
+  fetch('/api/config', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  }).catch(() => {});
+  // Also keep localStorage as fallback
   try { localStorage.setItem(LS_KEY, JSON.stringify(data)); } catch (_) {
     try { data.logoSrc = null; localStorage.setItem(LS_KEY, JSON.stringify(data)); } catch (_) {}
   }
@@ -1564,12 +1632,7 @@ function persistSave() {
 
 // Live-persist just volumes (called on slider input, no full save needed)
 function persistVolumes() {
-  try {
-    const raw = localStorage.getItem(LS_KEY);
-    const s   = raw ? JSON.parse(raw) : {};
-    s.videoVolumes = cfg.videoVolumes;
-    localStorage.setItem(LS_KEY, JSON.stringify(s));
-  } catch (_) {}
+  persistSave();
 }
 
 
@@ -1722,6 +1785,7 @@ function showScreen(name) {
   if (el) el.classList.add('active');
   ui.activeScreen = name;
   $('admin-corner').style.display = (name === 'main') ? '' : 'none';
+  if (name !== 'admin') hideOnScreenKeyboard();
 
   if (name !== 'player') {
     const v = $('player-video');
@@ -2628,6 +2692,7 @@ function openAdmin() {
 
 function checkAuth() {
   if ($('auth-input').value === cfg.password) {
+    hideOnScreenKeyboard();
     $('admin-auth-wrap').classList.add('hidden');
     openAdminPanel();
   } else {
@@ -2955,6 +3020,131 @@ $('panel-save').addEventListener('click', () => {
 
 
 /* ══════════════════════════════════════════════════════════════════
+   ON-SCREEN KEYBOARD
+   ══════════════════════════════════════════════════════════════════ */
+
+const OSK_SELECTOR = 'input[type="text"], input[type="password"]';
+let oskTarget = null;
+let osk = null;
+
+function shouldUseOsk(el) {
+  if (!(el instanceof HTMLInputElement)) return false;
+  const type = (el.type || '').toLowerCase();
+  return (type === 'text' || type === 'password') && !el.disabled && !el.readOnly;
+}
+
+function hideOnScreenKeyboard() {
+  const overlay = $('osk-overlay');
+  if (!overlay) return;
+  overlay.classList.remove('osk-visible');
+  overlay.setAttribute('aria-hidden', 'true');
+  oskTarget = null;
+  if (osk) osk.setOptions({ layoutName: 'default' });
+}
+
+function submitFromOsk(input) {
+  if (!input) return;
+  if (input.id === 'auth-input') {
+    checkAuth();
+    return;
+  }
+  if (input.id === 'pw1' || input.id === 'pw2') {
+    $('panel-save').click();
+    return;
+  }
+  input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+  input.dispatchEvent(new KeyboardEvent('keyup', { key: 'Enter', bubbles: true }));
+}
+
+function showOnScreenKeyboard(input) {
+  if (!osk || !shouldUseOsk(input)) return;
+  const overlay = $('osk-overlay');
+  if (!overlay) return;
+  oskTarget = input;
+  osk.setOptions({ layoutName: 'default' });
+  osk.setInput(input.value || '');
+  overlay.classList.add('osk-visible');
+  overlay.setAttribute('aria-hidden', 'false');
+}
+
+function initOnScreenKeyboard() {
+  const overlay = $('osk-overlay');
+  const container = $('osk-container');
+  if (!overlay || !container) return;
+  if (!window.SimpleKeyboard || !window.SimpleKeyboard.default) return;
+
+  osk = new window.SimpleKeyboard.default('#osk-container', {
+    layoutName: 'default',
+    layout: {
+      default: [
+        '1 2 3 4 5 6 7 8 9 0 {bksp}',
+        'q w e r t y u i o p',
+        'a s d f g h j k l',
+        '{shift} z x c v b n m {shift}',
+        '{space} {enter} {close}'
+      ],
+      shift: [
+        '! @ # $ % ^ & * ( ) {bksp}',
+        'Q W E R T Y U I O P',
+        'A S D F G H J K L',
+        '{shift} Z X C V B N M {shift}',
+        '{space} {enter} {close}'
+      ]
+    },
+    display: {
+      '{bksp}': '⌫',
+      '{shift}': '⇧',
+      '{space}': 'Space',
+      '{enter}': 'Enter',
+      '{close}': 'Close'
+    },
+    onChange: val => {
+      if (!oskTarget) return;
+      if (oskTarget.value !== val) {
+        oskTarget.value = val;
+        oskTarget.dispatchEvent(new Event('input', { bubbles: true }));
+      }
+    },
+    onKeyPress: key => {
+      if (key === '{shift}') {
+        const next = osk.options.layoutName === 'default' ? 'shift' : 'default';
+        osk.setOptions({ layoutName: next });
+        return;
+      }
+      if (key === '{enter}') {
+        submitFromOsk(oskTarget);
+        hideOnScreenKeyboard();
+        return;
+      }
+      if (key === '{close}') {
+        hideOnScreenKeyboard();
+      }
+    }
+  });
+
+  document.addEventListener('focusin', e => {
+    const target = e.target;
+    if (shouldUseOsk(target)) {
+      showOnScreenKeyboard(target);
+    }
+  });
+
+  document.addEventListener('input', e => {
+    if (!osk || !oskTarget) return;
+    if (e.target === oskTarget) osk.setInput(oskTarget.value || '');
+  });
+
+  document.addEventListener('pointerdown', e => {
+    if (!overlay.classList.contains('osk-visible')) return;
+    const target = e.target;
+    const isKeyboardTap = overlay.contains(target);
+    const isTextFieldTap = shouldUseOsk(target);
+    if (!isKeyboardTap && !isTextFieldTap) hideOnScreenKeyboard();
+  });
+}
+
+
+/* ══════════════════════════════════════════════════════════════════
    ADMIN CORNER BUTTON
    ══════════════════════════════════════════════════════════════════ */
 
@@ -2968,8 +3158,8 @@ $('admin-corner').addEventListener('keydown', e => {
    BOOT
    ══════════════════════════════════════════════════════════════════ */
 
-(function boot() {
-  persistLoad();
+(async function boot() {
+  await persistLoad();
   applyAccent(cfg.accent);
   applyTheme(cfg.lightMode);
   applyLogo(cfg.logoSrc);
@@ -2983,6 +3173,7 @@ $('admin-corner').addEventListener('keydown', e => {
   }
   renderMainScreen();
   showScreen('main');
+  initOnScreenKeyboard();
 })();
 
 // ── Block multi-touch gestures (OS edge-swipe, task switcher) ──
