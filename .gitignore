@@ -22,7 +22,7 @@ Thumbs.db
 # Build
 dist/
 build/
-*.log
+logs/*
 
 # Media files
 media/
