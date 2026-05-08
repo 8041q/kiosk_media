@@ -966,6 +966,36 @@ body.light #logo-preview-box {
 }
 #osk-overlay.osk-visible { display: block; }
 
+#osk-overlay.osk-numeric {
+  left: auto;
+  right: 16px;
+  bottom: 16px;
+  width: min(360px, calc(100vw - 32px));
+  padding: 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+#osk-overlay.osk-numeric #osk-container {
+  max-width: none;
+  margin: 0;
+}
+
+#osk-overlay.osk-numeric #osk-container .hg-row {
+  justify-content: stretch;
+}
+
+#osk-overlay.osk-numeric #osk-container .hg-button {
+  min-height: 54px;
+  font-size: 1.05rem;
+}
+
+#osk-overlay.osk-numeric #osk-container .hg-button[data-skbtn="{enter}"],
+#osk-overlay.osk-numeric #osk-container .hg-button[data-skbtn="{close}"] {
+  min-width: 88px;
+}
+
 #osk-container {
   max-width: 960px;
   margin: 0 auto;
@@ -1093,7 +1123,7 @@ body.light #logo-preview-box {
       <p data-i18n="enterPasswordToContinue">Enter your password to continue</p>
       <div class="field">
         <label for="auth-input" data-i18n="password">Password</label>
-        <input type="password" id="auth-input" autocomplete="off" placeholder="••••" />
+        <input type="password" id="auth-input" autocomplete="off" inputmode="numeric" pattern="[0-9]*" placeholder="••••" />
       </div>
       <span class="inline-err" id="auth-err" aria-live="polite"></span>
       <button class="btn btn-full" id="auth-btn" data-i18n="unlock">Unlock settings</button>
@@ -1215,12 +1245,12 @@ body.light #logo-preview-box {
         <div class="pw-fields">
           <div class="field">
                <label for="pw1" data-i18n="newPassword">New password</label>
-            <input type="password" id="pw1" autocomplete="new-password"
+            <input type="password" id="pw1" autocomplete="new-password" inputmode="numeric" pattern="[0-9]*"
                  data-i18n-ph="leaveBlankKeepCurrent" placeholder="Leave blank to keep current" />
           </div>
           <div class="field">
                <label for="pw2" data-i18n="confirmPassword">Confirm password</label>
-            <input type="password" id="pw2" autocomplete="new-password"
+            <input type="password" id="pw2" autocomplete="new-password" inputmode="numeric" pattern="[0-9]*"
                  data-i18n-ph="repeatNewPassword" placeholder="Repeat new password" />
           </div>
           <span class="inline-err" id="pw-err" aria-live="polite"></span>
@@ -1342,7 +1372,7 @@ const UI_STRINGS = {
     enterPasswordToContinue:'Enter your password to continue',
     newPassword:'New password', confirmPassword:'Confirm password',
     leaveBlankKeepCurrent:'Leave blank to keep current', repeatNewPassword:'Repeat new password',
-    pwMin:'Password must be at least 4 characters.', pwMismatch:'Passwords do not match.',
+    pwMin:'Password must be at least 4 characters.', pwMismatch:'Passwords do not match.', pwDigits:'Password must use numbers only.',
     exit:'Exit',
     exitConfirm:'Exit kiosk now? This will close the kiosk window and stop the local server.',
     exiting:'Exiting...',
@@ -1378,7 +1408,7 @@ const UI_STRINGS = {
     enterPasswordToContinue:'Digite sua senha para continuar',
     newPassword:'Nova senha', confirmPassword:'Confirmar senha',
     leaveBlankKeepCurrent:'Deixe em branco para manter a atual', repeatNewPassword:'Repita a nova senha',
-    pwMin:'A senha deve ter pelo menos 4 caracteres.', pwMismatch:'As senhas não coincidem.',
+    pwMin:'A senha deve ter pelo menos 4 caracteres.', pwMismatch:'As senhas não coincidem.', pwDigits:'A senha deve conter apenas numeros.',
     exit:'Sair',
     exitConfirm:'Sair do quiosque agora? Isso fechará a janela do quiosque e interromperá o servidor local.',
     exiting:'Saindo...',
@@ -1414,7 +1444,7 @@ const UI_STRINGS = {
     enterPasswordToContinue:'Introduce tu contraseña para continuar',
     newPassword:'Nueva contraseña', confirmPassword:'Confirmar contraseña',
     leaveBlankKeepCurrent:'Déjalo vacío para mantener la actual', repeatNewPassword:'Repite la nueva contraseña',
-    pwMin:'La contraseña debe tener al menos 4 caracteres.', pwMismatch:'Las contraseñas no coinciden.',
+    pwMin:'La contraseña debe tener al menos 4 caracteres.', pwMismatch:'Las contraseñas no coinciden.', pwDigits:'La contrasena debe usar solo numeros.',
     exit:'Salir',
     exitConfirm:'¿Salir del kiosco ahora? Esto cerrará la ventana del kiosco y detendrá el servidor local.',
     exiting:'Saliendo...',
@@ -1450,7 +1480,7 @@ const UI_STRINGS = {
     enterPasswordToContinue:'Entrez votre mot de passe pour continuer',
     newPassword:'Nouveau mot de passe', confirmPassword:'Confirmer le mot de passe',
     leaveBlankKeepCurrent:'Laissez vide pour conserver l\'actuel', repeatNewPassword:'Répétez le nouveau mot de passe',
-    pwMin:'Le mot de passe doit comporter au moins 4 caractères.', pwMismatch:'Les mots de passe ne correspondent pas.',
+    pwMin:'Le mot de passe doit comporter au moins 4 caractères.', pwMismatch:'Les mots de passe ne correspondent pas.', pwDigits:'Le mot de passe doit contenir uniquement des chiffres.',
     exit:'Quitter',
     exitConfirm:'Quitter le kiosque maintenant ? Cela fermera la fenêtre du kiosque et arrêtera le serveur local.',
     exiting:'Fermeture...',
@@ -1486,7 +1516,7 @@ const UI_STRINGS = {
     enterPasswordToContinue:'请输入密码以继续',
     newPassword:'新密码', confirmPassword:'确认密码',
     leaveBlankKeepCurrent:'留空则保留当前密码', repeatNewPassword:'再次输入新密码',
-    pwMin:'密码至少需要 4 个字符。', pwMismatch:'两次密码不一致。',
+    pwMin:'密码至少需要 4 个字符。', pwMismatch:'两次密码不一致。', pwDigits:'密码只能包含数字。',
     exit:'退出',
     exitConfirm:'现在退出展台吗？这将关闭展台窗口并停止本地服务器。',
     exiting:'正在退出...',
@@ -1514,7 +1544,10 @@ const OSK_STRINGS = {
 
 const OSK_EXTRA_ROWS = {
   en: { default: null, shift: null },
-  zh: { default: null, shift: null }, // pinyin-friendly Latin keyboard
+  zh: {
+    default: '的 一 是 在 有 人 我 你 他 这 那 中 文 国 语 名 称 展 览 馆 厅 票',
+    shift:   '了 不 和 为 上 个 们 来 到 时 大 地 子 出 会 可 也 对 生 能 而',
+  },
   pt: {
     default: 'á é í ó ú à â ê ô ã õ ç',
     shift:   'Á É Í Ó Ú À Â Ê Ô Ã Õ Ç',
@@ -2733,6 +2766,12 @@ $('auth-btn').addEventListener('click', checkAuth);
 $('auth-input').addEventListener('keydown', e => { if (e.key === 'Enter') checkAuth(); });
 $('auth-cancel').addEventListener('click', () => showScreen('main'));
 
+['auth-input', 'pw1', 'pw2'].forEach(id => {
+  const el = $(id);
+  if (!el) return;
+  el.addEventListener('input', () => forceNumericValue(el));
+});
+
 
 /* ══════════════════════════════════════════════════════════════════
    ADMIN — SIDEBAR NAVIGATION
@@ -3019,6 +3058,7 @@ $('panel-exit').addEventListener('click', async () => {
 $('panel-save').addEventListener('click', () => {
   const pw1 = $('pw1').value, pw2 = $('pw2').value;
   if (pw1 || pw2) {
+    if (/\D/.test(pw1) || /\D/.test(pw2)) { $('pw-err').textContent = t('pwDigits'); $('pw1').focus(); return; }
     if (pw1.length < 4) { $('pw-err').textContent = t('pwMin'); $('pw1').focus(); return; }
     if (pw1 !== pw2)    { $('pw-err').textContent = t('pwMismatch'); $('pw2').focus(); return; }
     draft.password = pw1;
@@ -3052,6 +3092,7 @@ $('panel-save').addEventListener('click', () => {
 const OSK_SELECTOR = 'input[type="text"], input[type="password"]';
 let oskTarget = null;
 let osk = null;
+let oskMode = 'full';
 
 function getOskLanguage() {
   return OSK_STRINGS[cfg.language] ? cfg.language : 'en';
@@ -3065,6 +3106,25 @@ function getOskDisplayForLanguage(lang) {
     '{space}': labels.space,
     '{enter}': labels.enter,
     '{close}': labels.close,
+  };
+}
+
+function getNumericOskLayout() {
+  return {
+    default: [
+      '7 8 9',
+      '4 5 6',
+      '1 2 3',
+      '0 {bksp}',
+      '{enter} {close}'
+    ],
+    shift: [
+      '7 8 9',
+      '4 5 6',
+      '1 2 3',
+      '0 {bksp}',
+      '{enter} {close}'
+    ],
   };
 }
 
@@ -3090,14 +3150,15 @@ function getOskLayoutForLanguage(lang) {
   };
 }
 
-function syncOskLanguage(layoutName) {
+function syncOskLanguage(layoutName, mode) {
   if (!osk) return;
   const lang = getOskLanguage();
+  const nextMode = mode || oskMode || 'full';
   const nextLayoutName = layoutName || (osk.options && osk.options.layoutName) || 'default';
   osk.setOptions({
-    layout: getOskLayoutForLanguage(lang),
+    layout: nextMode === 'numeric' ? getNumericOskLayout() : getOskLayoutForLanguage(lang),
     display: getOskDisplayForLanguage(lang),
-    layoutName: nextLayoutName,
+    layoutName: nextMode === 'numeric' ? 'default' : nextLayoutName,
   });
 }
 
@@ -3113,11 +3174,26 @@ function shouldUseOsk(el) {
   return (type === 'text' || type === 'password') && !el.disabled && !el.readOnly;
 }
 
+function isPinInput(el) {
+  if (!(el instanceof HTMLInputElement)) return false;
+  return el.id === 'auth-input' || el.id === 'pw1' || el.id === 'pw2';
+}
+
+function forceNumericValue(el) {
+  if (!(el instanceof HTMLInputElement)) return;
+  const onlyDigits = (el.value || '').replace(/\D+/g, '');
+  if (el.value !== onlyDigits) {
+    el.value = onlyDigits;
+  }
+}
+
 function hideOnScreenKeyboard() {
   const overlay = $('osk-overlay');
   if (!overlay) return;
   overlay.classList.remove('osk-visible');
+  overlay.classList.remove('osk-numeric');
   overlay.setAttribute('aria-hidden', 'true');
+  oskMode = 'full';
   oskTarget = null;
   if (osk) osk.setOptions({ layoutName: 'default' });
 }
@@ -3140,8 +3216,12 @@ function showOnScreenKeyboard(input) {
   if (!osk || !shouldUseOsk(input)) return;
   const overlay = $('osk-overlay');
   if (!overlay) return;
+  const numeric = isPinInput(input);
+  if (numeric) forceNumericValue(input);
+  oskMode = numeric ? 'numeric' : 'full';
   oskTarget = input;
-  syncOskLanguage('default');
+  overlay.classList.toggle('osk-numeric', numeric);
+  syncOskLanguage('default', oskMode);
   osk.setInput(input.value || '');
   overlay.classList.add('osk-visible');
   overlay.setAttribute('aria-hidden', 'false');
@@ -3161,13 +3241,17 @@ function initOnScreenKeyboard() {
     display: getOskDisplayForLanguage(oskLang),
     onChange: val => {
       if (!oskTarget) return;
-      if (oskTarget.value !== val) {
-        oskTarget.value = val;
+      let nextVal = val;
+      if (isPinInput(oskTarget)) nextVal = (val || '').replace(/\D+/g, '');
+      if (nextVal !== val) osk.setInput(nextVal);
+      if (oskTarget.value !== nextVal) {
+        oskTarget.value = nextVal;
         oskTarget.dispatchEvent(new Event('input', { bubbles: true }));
       }
     },
     onKeyPress: key => {
       if (key === '{shift}') {
+        if (oskMode === 'numeric') return;
         const next = osk.options.layoutName === 'default' ? 'shift' : 'default';
         osk.setOptions({ layoutName: next });
         return;
