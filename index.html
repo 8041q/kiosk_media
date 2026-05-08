@@ -1008,7 +1008,7 @@ const LANGUAGES = [
 const UI_STRINGS = {
   en: {
     tagline:'Select a video to watch', back:'Back', adminTitle:'Kiosk Settings',
-    unlock:'Unlock settings', save:'Save & Return', return:'Return',
+    unlock:'Login', save:'Save', return:'Return',
     password:'Password', wrongPw:'Incorrect password — try again.', saved:'Settings saved',
     videos:'Videos', appearance:'Appearance', language:'Language', security:'Security',
     selectAll:'Select all', deselectAll:'Deselect all', scanFolder:'Scan folder\u2026',
@@ -1031,11 +1031,11 @@ const UI_STRINGS = {
     noVideosFound:'No videos found. Refresh the media manifest and try again.',
     videosFoundAcross:'{count} videos found across {langs} languages', videosFound:'{count} videos found',
     pickImageFile:'Please select an image file.', imageUnder3mb:'Image must be under 3 MB.',
-    viewMode:'View Mode', viewCardsMedium:'Card size (current)', viewCardsLarge:'Cards (larger)', viewCardsSmall:'Cards (smaller)', viewListComfort:'Comfortable list', viewListCompact:'Compact list',
+    viewMode:'View Mode', viewCardsMedium:'Card size (medium)', viewCardsLarge:'Cards (larger)', viewCardsSmall:'Cards (smaller)', viewListComfort:'Comfortable list', viewListCompact:'Compact list',
   },
   pt: {
     tagline:'Selecione um vídeo para assistir', back:'Voltar', adminTitle:'Configurações',
-    unlock:'Desbloquear', save:'Salvar e Retornar', return:'Retornar',
+    unlock:'Login', save:'Salvar', return:'Retornar',
     password:'Senha', wrongPw:'Senha incorreta — tente novamente.', saved:'Configurações salvas',
     videos:'Vídeos', appearance:'Aparência', language:'Idioma', security:'Segurança',
     selectAll:'Selecionar todos', deselectAll:'Desmarcar todos', scanFolder:'Escanear pasta\u2026',
@@ -1058,11 +1058,11 @@ const UI_STRINGS = {
     noVideosFound:'Nenhum vídeo encontrado. Atualize o manifesto de mídia e tente novamente.',
     videosFoundAcross:'{count} vídeos encontrados em {langs} idiomas', videosFound:'{count} vídeos encontrados',
     pickImageFile:'Selecione um arquivo de imagem.', imageUnder3mb:'A imagem deve ter menos de 3 MB.',
-    viewMode:'Modo de visualização', viewCardsMedium:'Tamanho de cartões (atual)', viewCardsLarge:'Cartões (maiores)', viewCardsSmall:'Cartões (menores)', viewListComfort:'Lista confortável', viewListCompact:'Lista compacta',
+    viewMode:'Modo de visualização', viewCardsMedium:'Cartões (médio)', viewCardsLarge:'Cartões (maiores)', viewCardsSmall:'Cartões (menores)', viewListComfort:'Lista confortável', viewListCompact:'Lista compacta',
   },
   es: {
     tagline:'Selecciona un video para ver', back:'Volver', adminTitle:'Configuración',
-    unlock:'Desbloquear', save:'Guardar y Regresar', return:'Regresar',
+    unlock:'Iniciar sesión', save:'Guardar', return:'Regresar',
     password:'Contraseña', wrongPw:'Contraseña incorrecta — inténtalo de nuevo.', saved:'Configuración guardada',
     videos:'Videos', appearance:'Apariencia', language:'Idioma', security:'Seguridad',
     selectAll:'Seleccionar todo', deselectAll:'Deseleccionar todo', scanFolder:'Escanear carpeta\u2026',
@@ -1085,11 +1085,11 @@ const UI_STRINGS = {
     noVideosFound:'No se encontraron videos. Actualiza el manifiesto multimedia y vuelve a intentarlo.',
     videosFoundAcross:'{count} videos encontrados en {langs} idiomas', videosFound:'{count} videos encontrados',
     pickImageFile:'Selecciona un archivo de imagen.', imageUnder3mb:'La imagen debe ser menor de 3 MB.',
-    viewMode:'Modo de vista', viewCardsMedium:'Tamaño de tarjetas (actual)', viewCardsLarge:'Tarjetas (más grandes)', viewCardsSmall:'Tarjetas (más pequeñas)', viewListComfort:'Lista cómoda', viewListCompact:'Lista compacta',
+    viewMode:'Modo de vista', viewCardsMedium:'Tarjetas (medio)', viewCardsLarge:'Tarjetas (más grandes)', viewCardsSmall:'Tarjetas (más pequeñas)', viewListComfort:'Lista cómoda', viewListCompact:'Lista compacta',
   },
   fr: {
     tagline:'Sélectionnez une vidéo à regarder', back:'Retour', adminTitle:'Paramètres',
-    unlock:'Déverrouiller', save:'Enregistrer et Fermer', return:'Retour',
+    unlock:'Se connecter', save:'Enregistrer', return:'Retour',
     password:'Mot de passe', wrongPw:'Mot de passe incorrect — réessayez.', saved:'Paramètres enregistrés',
     videos:'Vidéos', appearance:'Apparence', language:'Langue', security:'Sécurité',
     selectAll:'Tout sélectionner', deselectAll:'Tout désélectionner', scanFolder:'Scanner le dossier\u2026',
@@ -1112,11 +1112,11 @@ const UI_STRINGS = {
     noVideosFound:'Aucune vidéo trouvée. Actualisez le manifeste média et réessayez.',
     videosFoundAcross:'{count} vidéos trouvées dans {langs} langues', videosFound:'{count} vidéos trouvées',
     pickImageFile:'Veuillez sélectionner un fichier image.', imageUnder3mb:'L\'image doit faire moins de 3 Mo.',
-    viewMode:'Mode d\'affichage', viewCardsMedium:'Taille des cartes (actuelle)', viewCardsLarge:'Cartes (plus grandes)', viewCardsSmall:'Cartes (plus petites)', viewListComfort:'Liste confortable', viewListCompact:'Liste compacte',
+    viewMode:'Mode d\'affichage', viewCardsMedium:'Cartes (moyen)', viewCardsLarge:'Cartes (plus grandes)', viewCardsSmall:'Cartes (plus petites)', viewListComfort:'Liste confortable', viewListCompact:'Liste compacte',
   },
   zh: {
     tagline:'选择视频观看', back:'返回', adminTitle:'展台设置',
-    unlock:'解锁', save:'保存并返回', return:'返回',
+    unlock:'登录', save:'保存', return:'返回',
     password:'密码', wrongPw:'密码错误，请重试。', saved:'设置已保存',
     videos:'视频', appearance:'外观', language:'语言', security:'安全',
     selectAll:'全选', deselectAll:'取消全选', scanFolder:'扫描文件夹\u2026',
@@ -1139,22 +1139,9 @@ const UI_STRINGS = {
     noVideosFound:'未找到视频。请刷新媒体清单后重试。',
     videosFoundAcross:'在 {langs} 种语言中找到 {count} 个视频', videosFound:'找到 {count} 个视频',
     pickImageFile:'请选择图像文件。', imageUnder3mb:'图像大小必须小于 3 MB。',
-    viewMode:'视图模式', viewCardsMedium:'卡片大小（当前）', viewCardsLarge:'卡片（更大）', viewCardsSmall:'卡片（更小）', viewListComfort:'舒适列表', viewListCompact:'紧凑列表',
+    viewMode:'视图模式', viewCardsMedium:'卡片（中等的）', viewCardsLarge:'卡片（更大）', viewCardsSmall:'卡片（更小）', viewListComfort:'舒适列表', viewListCompact:'紧凑列表',
   },
 };
-
-/**
- * VIDEO_LIST — fallback paths, keyed by language code.
- * Used if the generated media manifest is missing.
- */
-const VIDEO_LIST = {
-  en: ['media/en/video1.mp4', 'media/en/video2.mp4', 'media/en/video3.mp4'],
-  pt: ['media/pt-pt/video1.mp4', 'media/pt-pt/video2.mp4'],
-  es: ['media/sp/video1.mp4', 'media/sp/video2.mp4'],
-  fr: ['media/fr/video1.mp4', 'media/fr/video2.mp4'],
-  zh: ['media/zh/video1.mp4', 'media/zh/video2.mp4'],
-};
-
 
 /* ══════════════════════════════════════════════════════════════════
    UTILITY
@@ -1432,6 +1419,7 @@ function loadFallbackCatalog() {
 
 const MEDIA_MANIFEST_SRC = 'media/manifest.js';
 const MEDIA_MANIFEST_GLOBAL = 'KIOSK_MEDIA_MANIFEST';
+const MEDIA_SCAN_API = '/api/scan';
 
 function makeSourcesFromPaths(paths) {
   return paths
@@ -1475,6 +1463,17 @@ function reloadMediaManifest() {
 }
 
 async function scanAllLanguages() {
+  try {
+    const resp = await fetch(MEDIA_SCAN_API, {
+      method: 'POST',
+      cache: 'no-store',
+      headers: { 'Accept': 'application/json' }
+    });
+    if (!resp.ok) return await reloadMediaManifest();
+  } catch {
+    return await reloadMediaManifest();
+  }
+
   return await reloadMediaManifest();
 }
 

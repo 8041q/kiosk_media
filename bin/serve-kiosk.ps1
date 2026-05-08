@@ -11,6 +11,7 @@ if (-not $RootPath) {
 
 $resolvedRoot = (Resolve-Path -LiteralPath $RootPath).Path
 $prefix = "http://127.0.0.1:$Port/"
+$manifestScriptPath = Join-Path $resolvedRoot 'bin\generate-media-manifest.ps1'
 
 $mimeTypes = @{
   '.html' = 'text/html; charset=utf-8'
@@ -60,6 +61,50 @@ function Send-HttpResponse {
   }
 }
 
+function Send-JsonResponse {
+  param(
+    [Parameter(Mandatory = $true)]
+    $Context,
+    [Parameter(Mandatory = $true)]
+    [int]$StatusCode,
+    [Parameter(Mandatory = $true)]
+    [object]$Payload
+  )
+
+  $json = $Payload | ConvertTo-Json -Depth 6
+  $bytes = [System.Text.Encoding]::UTF8.GetBytes($json)
+  Send-HttpResponse -Context $Context -StatusCode $StatusCode -ContentType 'application/json; charset=utf-8' -Bytes $bytes
+}
+
+function Handle-ScanRequest {
+  param(
+    [Parameter(Mandatory = $true)]
+    $Context
+  )
+
+  if (-not (Test-Path -LiteralPath $manifestScriptPath -PathType Leaf)) {
+    Send-JsonResponse -Context $Context -StatusCode 500 -Payload @{
+      ok = $false
+      error = 'Manifest generation script not found.'
+    }
+    return
+  }
+
+  try {
+    & $manifestScriptPath | Out-Null
+    Send-JsonResponse -Context $Context -StatusCode 200 -Payload @{
+      ok = $true
+      manifest = 'media/manifest.js'
+      refreshedAt = [DateTime]::UtcNow.ToString('o')
+    }
+  } catch {
+    Send-JsonResponse -Context $Context -StatusCode 500 -Payload @{
+      ok = $false
+      error = $_.Exception.Message
+    }
+  }
+}
+
 try {
   while ($listener.IsListening) {
     try {
@@ -69,6 +114,19 @@ try {
     }
 
     $requestPath = [System.Uri]::UnescapeDataString($context.Request.Url.AbsolutePath.TrimStart('/'))
+
+    if ($requestPath -eq 'api/scan') {
+      if ($context.Request.HttpMethod -eq 'POST') {
+        Handle-ScanRequest -Context $context
+      } else {
+        Send-JsonResponse -Context $context -StatusCode 405 -Payload @{
+          ok = $false
+          error = 'Method Not Allowed'
+        }
+      }
+      continue
+    }
+
     if ([string]::IsNullOrWhiteSpace($requestPath)) {
       $requestPath = 'index.html'
     }

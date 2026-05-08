@@ -15,6 +15,19 @@ if (-not (Test-Path -LiteralPath $serverScript)) {
   throw "Local server script was not found: $serverScript"
 }
 
+function Test-ServerSupportsScanApi {
+  param(
+    [string]$BaseUrl
+  )
+
+  try {
+    Invoke-WebRequest -Uri "$BaseUrl/api/scan" -Method Post -UseBasicParsing -TimeoutSec 2 | Out-Null
+    return $true
+  } catch {
+    return $false
+  }
+}
+
 $serverRunning = $false
 if (Test-Path -LiteralPath $pidFile) {
   $existingPid = (Get-Content -LiteralPath $pidFile -Raw).Trim()
@@ -22,6 +35,19 @@ if (Test-Path -LiteralPath $pidFile) {
     $proc = Get-Process -Id ([int]$existingPid) -ErrorAction SilentlyContinue
     if ($proc) {
       $serverRunning = $true
+
+      # If the currently running server doesn't expose runtime scan API,
+      # recycle it so newly added media can be discovered without full kiosk restarts.
+      if (-not (Test-ServerSupportsScanApi -BaseUrl "http://127.0.0.1:$serverPort")) {
+        try {
+          Stop-Process -Id $proc.Id -Force -ErrorAction Stop
+        } catch {
+          # Continue; startup below will fail loudly if this process is still binding the port.
+        }
+
+        Remove-Item -LiteralPath $pidFile -Force -ErrorAction SilentlyContinue
+        $serverRunning = $false
+      }
     } else {
       Remove-Item -LiteralPath $pidFile -Force -ErrorAction SilentlyContinue
     }
