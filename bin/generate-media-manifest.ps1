@@ -34,6 +34,10 @@ $manifest = [ordered]@{}
 foreach ($lang in $langFolders.GetEnumerator()) {
   $folderName = $lang.Value
   $folderPath = Join-Path $mediaRoot $folderName
+  if (-not (Test-Path -LiteralPath $folderPath -PathType Container)) {
+    New-Item -ItemType Directory -Path $folderPath -Force | Out-Null
+    Write-Output ('Created media folder: {0}' -f $folderPath)
+  }
   $manifest[$lang.Key] = @(Get-ManifestPaths -FolderPath $folderPath -FolderName $folderName)
 }
 

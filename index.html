@@ -1504,6 +1504,31 @@ const UI_STRINGS = {
   },
 };
 
+const OSK_STRINGS = {
+  en: { space: 'Space', enter: 'Enter', close: 'Close' },
+  pt: { space: 'Espaco', enter: 'Entrar', close: 'Fechar' },
+  es: { space: 'Espacio', enter: 'Entrar', close: 'Cerrar' },
+  fr: { space: 'Espace', enter: 'Entrer', close: 'Fermer' },
+  zh: { space: '空格', enter: '确认', close: '关闭' },
+};
+
+const OSK_EXTRA_ROWS = {
+  en: { default: null, shift: null },
+  zh: { default: null, shift: null }, // pinyin-friendly Latin keyboard
+  pt: {
+    default: 'á é í ó ú à â ê ô ã õ ç',
+    shift:   'Á É Í Ó Ú À Â Ê Ô Ã Õ Ç',
+  },
+  es: {
+    default: 'á é í ó ú ü ñ',
+    shift:   'Á É Í Ó Ú Ü Ñ',
+  },
+  fr: {
+    default: 'à â æ ç é è ê ë î ï ô œ ù û ü ÿ',
+    shift:   'À Â Æ Ç É È Ê Ë Î Ï Ô Œ Ù Û Ü Ÿ',
+  },
+};
+
 /* ══════════════════════════════════════════════════════════════════
    UTILITY
    ══════════════════════════════════════════════════════════════════ */
@@ -2388,6 +2413,7 @@ function buildAdminLangGrid() {}
 
 async function applyLanguage(code, persist) {
   cfg.language = code;
+  syncOskLanguage();
   if (persist) persistSave();
   applyI18n();
 
@@ -3027,6 +3053,60 @@ const OSK_SELECTOR = 'input[type="text"], input[type="password"]';
 let oskTarget = null;
 let osk = null;
 
+function getOskLanguage() {
+  return OSK_STRINGS[cfg.language] ? cfg.language : 'en';
+}
+
+function getOskDisplayForLanguage(lang) {
+  const labels = OSK_STRINGS[lang] || OSK_STRINGS.en;
+  return {
+    '{bksp}': '⌫',
+    '{shift}': '⇧',
+    '{space}': labels.space,
+    '{enter}': labels.enter,
+    '{close}': labels.close,
+  };
+}
+
+function getOskLayoutForLanguage(lang) {
+  const extra = OSK_EXTRA_ROWS[lang] || OSK_EXTRA_ROWS.en;
+  return {
+    default: [
+      '1 2 3 4 5 6 7 8 9 0 {bksp}',
+      'q w e r t y u i o p',
+      'a s d f g h j k l',
+      '{shift} z x c v b n m {shift}',
+      extra.default,
+      '{space} {enter} {close}',
+    ].filter(Boolean),
+    shift: [
+      '! @ # $ % ^ & * ( ) {bksp}',
+      'Q W E R T Y U I O P',
+      'A S D F G H J K L',
+      '{shift} Z X C V B N M {shift}',
+      extra.shift,
+      '{space} {enter} {close}',
+    ].filter(Boolean),
+  };
+}
+
+function syncOskLanguage(layoutName) {
+  if (!osk) return;
+  const lang = getOskLanguage();
+  const nextLayoutName = layoutName || (osk.options && osk.options.layoutName) || 'default';
+  osk.setOptions({
+    layout: getOskLayoutForLanguage(lang),
+    display: getOskDisplayForLanguage(lang),
+    layoutName: nextLayoutName,
+  });
+}
+
+function findOskInputTarget(target) {
+  if (!(target instanceof Element)) return null;
+  const hit = target.closest(OSK_SELECTOR);
+  return shouldUseOsk(hit) ? hit : null;
+}
+
 function shouldUseOsk(el) {
   if (!(el instanceof HTMLInputElement)) return false;
   const type = (el.type || '').toLowerCase();
@@ -3061,7 +3141,7 @@ function showOnScreenKeyboard(input) {
   const overlay = $('osk-overlay');
   if (!overlay) return;
   oskTarget = input;
-  osk.setOptions({ layoutName: 'default' });
+  syncOskLanguage('default');
   osk.setInput(input.value || '');
   overlay.classList.add('osk-visible');
   overlay.setAttribute('aria-hidden', 'false');
@@ -3073,31 +3153,12 @@ function initOnScreenKeyboard() {
   if (!overlay || !container) return;
   if (!window.SimpleKeyboard || !window.SimpleKeyboard.default) return;
 
-  osk = new window.SimpleKeyboard.default('#osk-container', {
+  const oskLang = getOskLanguage();
+
+  osk = new window.SimpleKeyboard.default({
     layoutName: 'default',
-    layout: {
-      default: [
-        '1 2 3 4 5 6 7 8 9 0 {bksp}',
-        'q w e r t y u i o p',
-        'a s d f g h j k l',
-        '{shift} z x c v b n m {shift}',
-        '{space} {enter} {close}'
-      ],
-      shift: [
-        '! @ # $ % ^ & * ( ) {bksp}',
-        'Q W E R T Y U I O P',
-        'A S D F G H J K L',
-        '{shift} Z X C V B N M {shift}',
-        '{space} {enter} {close}'
-      ]
-    },
-    display: {
-      '{bksp}': '⌫',
-      '{shift}': '⇧',
-      '{space}': 'Space',
-      '{enter}': 'Enter',
-      '{close}': 'Close'
-    },
+    layout: getOskLayoutForLanguage(oskLang),
+    display: getOskDisplayForLanguage(oskLang),
     onChange: val => {
       if (!oskTarget) return;
       if (oskTarget.value !== val) {
@@ -3122,11 +3183,18 @@ function initOnScreenKeyboard() {
     }
   });
 
-  document.addEventListener('focusin', e => {
-    const target = e.target;
-    if (shouldUseOsk(target)) {
-      showOnScreenKeyboard(target);
+  document.addEventListener('pointerdown', e => {
+    const input = findOskInputTarget(e.target);
+    if (!input) return;
+    if (document.activeElement !== input) {
+      try { input.focus({ preventScroll: true }); } catch (_) { input.focus(); }
     }
+    showOnScreenKeyboard(input);
+  }, true);
+
+  document.addEventListener('focusin', e => {
+    const input = findOskInputTarget(e.target);
+    if (input) showOnScreenKeyboard(input);
   });
 
   document.addEventListener('input', e => {
@@ -3166,6 +3234,7 @@ $('admin-corner').addEventListener('keydown', e => {
   applyViewMode(cfg.viewMode);
   buildLangSwitcher();
   applyI18n();
+  initOnScreenKeyboard();
   if (loadInitialManifest() && cfg.language in allLangSources) {
     buildCatalog(allLangSources[cfg.language]);
   } else {
@@ -3173,7 +3242,6 @@ $('admin-corner').addEventListener('keydown', e => {
   }
   renderMainScreen();
   showScreen('main');
-  initOnScreenKeyboard();
 })();
 
 // ── Block multi-touch gestures (OS edge-swipe, task switcher) ──
