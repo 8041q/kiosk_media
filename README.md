@@ -18,8 +18,9 @@ Currently only works on Windows. Linux compatibility will be the next implementa
 
 Double-click one of these to launch the kiosk:
 
-1. **`Launch Kiosk.cmd`** (easiest) - Starts the application immediately
-2. **`kiosk.exe.lnk`** - Desktop shortcut (created via powershell if needed)
+1. **`kiosk.exe`** (recommended) - Root launcher with app icon
+2. **`kiosk.exe.lnk`** - Shortcut (can be recreated via PowerShell)
+3. **`bin\\launch-kiosk.cmd`** - Script fallback launcher
 
 ### What Happens
 
@@ -82,13 +83,15 @@ Do NOT edit `manifest.js` manually—it's regenerated on every startup.
 ```
 kiosk_media/
   ├── index.html                    # Main application UI
-  ├── Launch Kiosk.cmd              # Quick launch script
+  ├── kiosk.exe                     # Portable launcher executable
   ├── README.md                     # This file
   │
   ├── bin/
+  │   ├── launch-kiosk.cmd          # Script wrapper used by kiosk.exe
   │   ├── launch-kiosk.ps1          # Main launcher (starts server + Firefox)
   │   ├── serve-kiosk.ps1           # Local HTTP server
   │   ├── generate-media-manifest.ps1 # Creates manifest.js from media files
+  │   ├── kiosk-launcher.cs         # Source for root kiosk.exe launcher
   │   └── create-kiosk-shortcut.ps1 # Creates desktop shortcut
   │
   ├── media/
