@@ -13,6 +13,25 @@ $kioskProfileDir = Join-Path $projectRoot 'bin\.firefox-kiosk-profile'
 $serverOutLog = Join-Path $projectRoot 'logs\.kiosk-server.out.log'
 $serverErrLog = Join-Path $projectRoot 'logs\.kiosk-server.err.log'
 
+# Pre-create the kiosk profile and write first-run suppression prefs so the kiosk URL
+# loads immediately on the very first launch without any welcome or import UI.
+if (-not (Test-Path -LiteralPath $kioskProfileDir -PathType Container)) {
+  New-Item -ItemType Directory -Path $kioskProfileDir -Force | Out-Null
+}
+$userJsPath = Join-Path $kioskProfileDir 'user.js'
+if (-not (Test-Path -LiteralPath $userJsPath)) {
+  $userJs = @'
+user_pref("browser.startup.homepage_override.mstone", "ignore");
+user_pref("browser.startup.firstrunSkipsHomepage", true);
+user_pref("browser.aboutwelcome.enabled", false);
+user_pref("trailhead.firstrun.didSeeAboutWelcome", true);
+user_pref("browser.shell.checkDefaultBrowser", false);
+user_pref("datareporting.policy.dataSubmissionPolicyBypassNotification", true);
+user_pref("toolkit.telemetry.reportingpolicy.firstRun", false);
+'@
+  Set-Content -LiteralPath $userJsPath -Value $userJs -Encoding ASCII
+}
+
 if (-not (Test-Path -LiteralPath $serverScript)) {
   throw "Local server script was not found: $serverScript"
 }
