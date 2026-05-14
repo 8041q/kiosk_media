@@ -1899,6 +1899,8 @@ function buildCatalog(sources) {
 }
 
 function loadFallbackCatalog() {
+  if (typeof VIDEO_LIST === 'undefined') { buildCatalog([]); return; }
+
   const paths = VIDEO_LIST[cfg.language] || VIDEO_LIST.en;
   const sources = paths.map(p => ({ name: p.split('/').pop(), src: p }));
   buildCatalog(sources);
