@@ -28,6 +28,7 @@ dist/
 build/
 logs/*
 !logs/.gitkeep
+!media/.gitkeep
 
 # Media files
 media/*
