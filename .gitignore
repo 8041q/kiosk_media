@@ -30,5 +30,5 @@ logs/*
 !logs/.gitkeep
 
 # Media files
-media/
+media/*
 manifest.js
