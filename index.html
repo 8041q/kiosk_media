@@ -2366,7 +2366,17 @@ function buildLangSwitcher() {
   const trigger = $('lang-select');
   const menu = $('lang-menu');
 
-  menu.innerHTML = LANGUAGES.map(({ code, label }) => `
+  // Only show languages that actually have videos. If the manifest hasn't been
+  // loaded yet (allLangSources is empty), fall back to showing all languages.
+  const manifestLoaded = Object.keys(allLangSources).length > 0;
+  const visibleLangs = manifestLoaded
+    ? LANGUAGES.filter(({ code }) => (allLangSources[code]?.length ?? 0) > 0)
+    : LANGUAGES;
+
+  // Hide the entire switcher when there is nothing to switch between.
+  sw.style.display = visibleLangs.length <= 1 ? 'none' : '';
+
+  menu.innerHTML = visibleLangs.map(({ code, label }) => `
     <button class="lang-menu-item${code === cfg.language ? ' active' : ''}" type="button" role="menuitemradio" aria-checked="${code === cfg.language}" data-lang-code="${code}">
       ${escHtml(label)}
     </button>`).join('');
@@ -2952,6 +2962,7 @@ $('scan-btn').addEventListener('click', async () => {
   buildVidLangTabs();
   draft.selectedIds = [...cfg.selectedIds];
   buildVideoAdminGrid();
+  buildLangSwitcher(); // refresh: show/hide options based on which folders have videos
   const langCount = Object.keys(allLangSources).length;
   const msg = langCount > 1
     ? tf('videosFoundAcross', { count: totalVideos, langs: langCount })
@@ -3316,10 +3327,11 @@ $('admin-corner').addEventListener('keydown', e => {
   applyTheme(cfg.lightMode);
   applyLogo(cfg.logoSrc);
   applyViewMode(cfg.viewMode);
-  buildLangSwitcher();
   applyI18n();
   initOnScreenKeyboard();
-  if (loadInitialManifest() && cfg.language in allLangSources) {
+  const _hasManifest = loadInitialManifest(); // must run before buildLangSwitcher
+  buildLangSwitcher();                         // now filters by populated allLangSources
+  if (_hasManifest && cfg.language in allLangSources) {
     buildCatalog(allLangSources[cfg.language]);
   } else {
     loadFallbackCatalog();
