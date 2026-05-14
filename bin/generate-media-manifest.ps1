@@ -6,8 +6,8 @@ $manifestOut = Join-Path $mediaRoot 'manifest.js'
 $videoExts   = @('.mp4', '.webm', '.mov')
 $langFolders = [ordered]@{
   en = 'en'
-  pt = 'pt-pt'
-  es = 'sp'
+  pt = 'pt'
+  es = 'es'
   fr = 'fr'
   zh = 'zh'
 }
