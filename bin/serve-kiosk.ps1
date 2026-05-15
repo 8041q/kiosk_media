@@ -432,36 +432,49 @@ try {
         $rangeHeader = $context.Request.Headers['Range']
         if ($rangeHeader -and ($rangeHeader -match 'bytes=(\d+)-(\d*)')) {
           $start = [int64]$matches[1]
-          $end   = if ($matches[2] -ne '') { [int64]$matches[2] } else { $fileLength - 1 }
-          if ($end -ge $fileLength) { $end = $fileLength - 1 }
+          
+          $reqEnd = if ($matches[2] -ne '') { [int64]$matches[2] } else { $fileLength - 1 }
+          if ($reqEnd -ge $fileLength) { $reqEnd = $fileLength - 1 }
+
+          # Cap to 2 MB per response so the server never blocks for long
+          $maxChunk = 2MB
+          $end    = [Math]::Min($reqEnd, $start + $maxChunk - 1)
+
           $length = $end - $start + 1
           Write-Log "   RANGE requested: start=$start  end=$end  length=$length  fileSize=$fileLength"
 
           $fs = [System.IO.File]::OpenRead($fullPath)
           try {
             $fs.Seek($start, [System.IO.SeekOrigin]::Begin) | Out-Null
-            $buffer = New-Object byte[] $length
-            $read   = $fs.Read($buffer, 0, $length)
-            if ($read -lt $length) {
-              Write-Err "PARTIAL READ '$requestPath': asked $length bytes, Read() returned $read  (delta=$($length - $read)). Browser will stall!"
-            } else {
-              Write-Log "   RANGE read OK: $read bytes"
-            }
+
             $context.Response.StatusCode      = 206
             $context.Response.ContentType     = $contentType
             $context.Response.ContentLength64 = $length
             $context.Response.AddHeader('Content-Range', "bytes $start-$end/$fileLength")
             $context.Response.AddHeader('Accept-Ranges', 'bytes')
             Write-Log "   RESP 206  Content-Range: bytes $start-$end/$fileLength  Content-Length: $length"
-            if ($context.Request.HttpMethod -ne 'HEAD' -and $read -gt 0) {
-              $context.Response.OutputStream.Write($buffer, 0, $read)
-              Write-Log "   SENT $read bytes to client"
+
+            if ($context.Request.HttpMethod -ne 'HEAD') {
+              $chunkSize = 256KB
+              $remaining = $length
+              $totalSent = 0
+              $chunk = New-Object byte[] $chunkSize
+              while ($remaining -gt 0) {
+                $toRead = [Math]::Min($chunkSize, $remaining)
+                $read = $fs.Read($chunk, 0, $toRead)
+                if ($read -eq 0) { break }
+                $context.Response.OutputStream.Write($chunk, 0, $read)
+                $totalSent += $read
+                $remaining -= $read
+              }
+              Write-Log "   SENT $totalSent bytes to client"
             }
           } finally {
             $fs.Close()
             try { $context.Response.OutputStream.Close() } catch {}
             Write-Log "   DONE range response"
           }
+
         } else {
           Write-Log "   FULL request (no Range header)  size=$fileLength"
           $bytes = [System.IO.File]::ReadAllBytes($fullPath)
