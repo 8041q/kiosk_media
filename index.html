@@ -1996,6 +1996,15 @@ let   activeProbes  = 0;
 const metaQueue     = [];
 const thumbCache    = new Map();
 const durCache      = new Map();
+const activeProbeVideos = new Map(); // src → probe video element
+
+function abortProbe(src) {
+  const probeVid = activeProbeVideos.get(src);
+  if (!probeVid) return;
+  activeProbeVideos.delete(src);
+  probeVid.removeAttribute('src');
+  probeVid.load();
+}
 const thumbDebug    = {
   queued: 0,
   success: 0,
@@ -2031,7 +2040,7 @@ function runMeta({ record, onThumb, onDuration }) {
 
     const MAX_CAPTURE_ATTEMPTS = 2;
     const video  = document.createElement('video');
-    video.muted  = true; video.preload = 'auto'; video.playsInline = true;
+    video.muted  = true; video.preload = 'metadata'; video.playsInline = true;
     const canvas = document.createElement('canvas');
     canvas.width = 320; canvas.height = 180;
     const ctx    = canvas.getContext('2d');
@@ -2039,8 +2048,11 @@ function runMeta({ record, onThumb, onDuration }) {
     let attempts = 0;
     let timer = null;
 
+    activeProbeVideos.set(record.src, video);
+
     const cleanup = () => {
       clearTimeout(timer);
+      activeProbeVideos.delete(record.src);
       video.removeEventListener('loadeddata', handleLoadedData);
       video.removeEventListener('seeked', handleSeeked);
       video.removeEventListener('error', handleError);
@@ -2625,6 +2637,10 @@ function openVideo(record, tileIdx) {
   $('player-error').classList.remove('active');
   $('player-spinner').classList.add('active');
   $('player-hud').classList.remove('hud-faded');
+
+  // Kill any in-flight thumbnail probe for this video so the browser
+  // isn't juggling two concurrent connections to the same large file.
+  abortProbe(record.src);
 
   // Set volume from saved value
   const vol = cfg.videoVolumes[record.id] ?? 1.0;

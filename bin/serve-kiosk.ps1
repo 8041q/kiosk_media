@@ -39,6 +39,25 @@ $listener = New-Object System.Net.HttpListener
 $listener.Prefixes.Add($prefix)
 $listener.Start()
 
+# ── Logging ──────────────────────────────────────────────────────────────────
+# Write-Log goes to stdout  → captured in .kiosk-server.out.log
+# Write-Err goes to stderr  → captured in .kiosk-server.err.log
+function Write-Log {
+  param([string]$Message)
+  $ts = (Get-Date).ToString('HH:mm:ss.fff')
+  [Console]::Out.WriteLine("[$ts] $Message")
+  [Console]::Out.Flush()
+}
+function Write-Err {
+  param([string]$Message)
+  $ts = (Get-Date).ToString('HH:mm:ss.fff')
+  [Console]::Error.WriteLine("[$ts] ERROR $Message")
+  [Console]::Error.Flush()
+}
+
+Write-Log "=== Kiosk server starting on $prefix ==="
+Write-Log "Root: $resolvedRoot"
+
 function Send-HttpResponse {
   param(
     [Parameter(Mandatory = $true)]
@@ -318,6 +337,10 @@ try {
     }
 
     $requestPath = [System.Uri]::UnescapeDataString($context.Request.Url.AbsolutePath.TrimStart('/'))
+    $reqMethod   = $context.Request.HttpMethod
+    $rangeHdr    = $context.Request.Headers['Range']
+    $rangeLog    = if ($rangeHdr) { " Range=[$rangeHdr]" } else { '' }
+    Write-Log ">> $reqMethod /$requestPath$rangeLog"
 
     if ($requestPath -eq 'api/config') {
       if ($context.Request.HttpMethod -eq 'GET') {
@@ -402,17 +425,73 @@ try {
       try {
         $ext = [System.IO.Path]::GetExtension($fullPath).ToLowerInvariant()
         $contentType = if ($mimeTypes.ContainsKey($ext)) { $mimeTypes[$ext] } else { 'application/octet-stream' }
-        $bytes = [System.IO.File]::ReadAllBytes($fullPath)
-        Send-HttpResponse -Context $context -StatusCode 200 -ContentType $contentType -Bytes $bytes
+        $fileInfo   = Get-Item -LiteralPath $fullPath
+        $fileLength = $fileInfo.Length
+        Write-Log "   FILE: $fullPath  size=$fileLength  type=$contentType"
+
+        $rangeHeader = $context.Request.Headers['Range']
+        if ($rangeHeader -and ($rangeHeader -match 'bytes=(\d+)-(\d*)')) {
+          $start = [int64]$matches[1]
+          $end   = if ($matches[2] -ne '') { [int64]$matches[2] } else { $fileLength - 1 }
+          if ($end -ge $fileLength) { $end = $fileLength - 1 }
+          $length = $end - $start + 1
+          Write-Log "   RANGE requested: start=$start  end=$end  length=$length  fileSize=$fileLength"
+
+          $fs = [System.IO.File]::OpenRead($fullPath)
+          try {
+            $fs.Seek($start, [System.IO.SeekOrigin]::Begin) | Out-Null
+            $buffer = New-Object byte[] $length
+            $read   = $fs.Read($buffer, 0, $length)
+            if ($read -lt $length) {
+              Write-Err "PARTIAL READ '$requestPath': asked $length bytes, Read() returned $read  (delta=$($length - $read)). Browser will stall!"
+            } else {
+              Write-Log "   RANGE read OK: $read bytes"
+            }
+            $context.Response.StatusCode      = 206
+            $context.Response.ContentType     = $contentType
+            $context.Response.ContentLength64 = $length
+            $context.Response.AddHeader('Content-Range', "bytes $start-$end/$fileLength")
+            $context.Response.AddHeader('Accept-Ranges', 'bytes')
+            Write-Log "   RESP 206  Content-Range: bytes $start-$end/$fileLength  Content-Length: $length"
+            if ($context.Request.HttpMethod -ne 'HEAD' -and $read -gt 0) {
+              $context.Response.OutputStream.Write($buffer, 0, $read)
+              Write-Log "   SENT $read bytes to client"
+            }
+          } finally {
+            $fs.Close()
+            try { $context.Response.OutputStream.Close() } catch {}
+            Write-Log "   DONE range response"
+          }
+        } else {
+          Write-Log "   FULL request (no Range header)  size=$fileLength"
+          $bytes = [System.IO.File]::ReadAllBytes($fullPath)
+          Write-Log "   ReadAllBytes got $($bytes.Length) bytes"
+          $context.Response.StatusCode      = 200
+          $context.Response.ContentType     = $contentType
+          $context.Response.ContentLength64 = $fileLength
+          $context.Response.AddHeader('Accept-Ranges', 'bytes')
+          Write-Log "   RESP 200  Content-Length: $fileLength"
+          if ($context.Request.HttpMethod -ne 'HEAD' -and $bytes.Length -gt 0) {
+            $context.Response.OutputStream.Write($bytes, 0, $bytes.Length)
+            Write-Log "   SENT $($bytes.Length) bytes to client"
+          }
+          try { $context.Response.OutputStream.Close() } catch {}
+          Write-Log "   DONE full response"
+        }
       } catch {
-        $bytes = [System.Text.Encoding]::UTF8.GetBytes('Internal Server Error')
-        Send-HttpResponse -Context $context -StatusCode 500 -ContentType 'text/plain; charset=utf-8' -Bytes $bytes
+        Write-Err "Exception serving '$requestPath': $($_.Exception.GetType().Name): $($_.Exception.Message)"
+        Write-Err "  Stack: $($_.ScriptStackTrace)"
+        try {
+          $errBytes = [System.Text.Encoding]::UTF8.GetBytes('Internal Server Error')
+          Send-HttpResponse -Context $context -StatusCode 500 -ContentType 'text/plain; charset=utf-8' -Bytes $errBytes
+        } catch {}
       }
       continue
     }
 
-    $bytes = [System.Text.Encoding]::UTF8.GetBytes('Not Found')
-    Send-HttpResponse -Context $context -StatusCode 404 -ContentType 'text/plain; charset=utf-8' -Bytes $bytes
+    Write-Log "   404 NOT FOUND: $fullPath"
+    $notFoundBytes = [System.Text.Encoding]::UTF8.GetBytes('Not Found')
+    Send-HttpResponse -Context $context -StatusCode 404 -ContentType 'text/plain; charset=utf-8' -Bytes $notFoundBytes
   }
 }
 finally {
