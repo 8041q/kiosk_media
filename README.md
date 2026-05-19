@@ -159,6 +159,11 @@ If you see `mpeg4` or `Simple Profile` or the pixel format is yuv420p10le, you m
 ffmpeg\bin\ffmpeg.exe -i YOUR_ORIGINAL_FILE.mp4 -c:v libx264 -pix_fmt yuv420p -crf 18 -preset fast -movflags faststart -c:a copy YOUR_EDITED_FILE_NEW_NAME.mp4
 ```
 
+If the video still won't play after converting (missing codec error - older Windows 10), add -profile:v high -level:v 3.1 to the command, use this instead:
+```
+ffmpeg\bin\ffmpeg.exe -i YOUR_ORIGINAL_FILE.mp4 -c:v libx264 -profile:v high -level:v 3.1 -pix_fmt yuv420p -crf 18 -preset fast -movflags faststart -c:a copy YOUR_EDITED_FILE_NEW_NAME.mp4
+```
+
 **Tip:**
 You will need ffmpeg/ffprobe to run those commands above, download from https://www.gyan.dev/ffmpeg/builds/ and choose "ffmpeg-git-essentials.7z" under the section "git master builds", then unzip it, rename it to "ffmpeg" for easier use. Place it next to the videos or a fixed path.
 
