@@ -141,19 +141,31 @@ kiosk_media/
 - Check `logs/.kiosk-server.log` for errors
 
 ### Port 8765 already in use
-- Another application is using this port
-- Close any running kiosk instances
+- Another application or previous session is using this port
+- Close any running kiosk or Powershell instances
 - Restart the application
 
 ## Shutdown
+Firefox's HTML5 video player only supports certain video codecs: **H.264 (recommended), H.265, VP9, AV1**. Some older files (e.g., MPEG-4 Part 2, DivX/Xvid) will not play—audio may work, but video will be blank or missing.
 
-Use the **Admin → Exit Kiosk** button for a clean shutdown.
+**How to check a video's codec:**
+```powershell
+ffmpeg\bin\ffprobe.exe -v error -select_streams v:0 -show_entries stream=codec_name,profile,pix_fmt -of default=nw=1 "your_file_path.mp4"
+```
+If you see `mpeg4` or `Simple Profile` or the pixel format is yuv420p10le, you must re-encode the file.
 
-- It closes the kiosk Firefox window launched by this project.
-- It stops the local kiosk PowerShell server process.
-- This avoids orphan PowerShell processes after closing the browser.
+**How to re-encode to H.264 (recommended for Firefox):**
+```powershell
+ffmpeg\bin\ffmpeg.exe -i YOUR_ORIGINAL_FILE.mp4 -c:v libx264 -pix_fmt yuv420p -crf 18 -preset fast -movflags faststart -c:a copy YOUR_EDITED_FILE_NEW_NAME.mp4
+```
 
-If you close Firefox manually, the local server process may keep running. In that case, launch again and use **Admin → Exit Kiosk**.
+If the video still won't play after converting (missing codec error - older Windows 10), add -profile:v high -level:v 3.1 to the command, use this instead:
+```
+ffmpeg\bin\ffmpeg.exe -i YOUR_ORIGINAL_FILE.mp4 -c:v libx264 -profile:v high -level:v 3.1 -pix_fmt yuv420p -crf 18 -preset fast -movflags faststart -c:a copy YOUR_EDITED_FILE_NEW_NAME.mp4
+```
+
+**Tip:**
+You will need ffmpeg/ffprobe to run those commands above, download from https://www.gyan.dev/ffmpeg/builds/ and choose "ffmpeg-git-essentials.7z" under the section "git master builds", then unzip it, rename it to "ffmpeg" for easier use. Place it next to the videos or a fixed path.
 
 ## License
 
