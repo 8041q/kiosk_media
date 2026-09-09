@@ -145,7 +145,7 @@ kiosk_media/
 - Close any running kiosk or Powershell instances
 - Restart the application
 
-## Shutdown
+## Troubleshoot
 Firefox's HTML5 video player only supports certain video codecs: **H.264 (recommended), H.265, VP9, AV1**. Some older files (e.g., MPEG-4 Part 2, DivX/Xvid) will not play—audio may work, but video will be blank or missing.
 
 **How to check a video's codec:**

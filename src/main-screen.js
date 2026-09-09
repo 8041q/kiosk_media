@@ -9,6 +9,7 @@ import { applyViewMode } from './theme.js';
 import { queueMeta, bindThumbImage } from './catalog.js';
 import { hudActivity, refocusPlayerSurface, syncPlayerToggleUI, updateVolUI } from './player.js';
 import { showScreen } from './screen-router.js';
+import { abortProbe } from './catalog.js';
 
 export function renderMainScreen() {
   const grid = $('tile-grid');
@@ -93,6 +94,8 @@ export function openVideo(record, tileIdx) {
   $('player-error').classList.remove('active');
   $('player-spinner').classList.add('active');
   $('player-hud').classList.remove('hud-faded');
+  // Kill any in-flight thumbnail probe for this video
+  abortProbe(record.src);
   const vol = cfg.videoVolumes[record.id] ?? 1.0;
   v.volume = Math.max(0, Math.min(1, vol));
   updateVolUI(v.volume);

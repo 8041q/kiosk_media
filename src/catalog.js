@@ -10,6 +10,16 @@ import { showToast } from './ui.js';
 let activeProbes = 0;
 const metaQueue = [];
 
+const activeProbeVideos = new Map(); // src → probe video element
+
+export function abortProbe(src) {
+  const probeVid = activeProbeVideos.get(src);
+  if (!probeVid) return;
+  activeProbeVideos.delete(src);
+  probeVid.removeAttribute('src');
+  probeVid.load();
+}
+
 export function queueMeta(record, onThumb, onDuration) {
   thumbDebug.queued += 1;
   metaQueue.push({ record, onThumb, onDuration });
@@ -34,7 +44,7 @@ function runMeta({ record, onThumb, onDuration }) {
 
     const MAX_CAPTURE_ATTEMPTS = 2;
     const video  = document.createElement('video');
-    video.muted  = true; video.preload = 'auto'; video.playsInline = true;
+    video.muted  = true; video.preload = 'metadata'; video.playsInline = true;
     const canvas = document.createElement('canvas');
     canvas.width = 320; canvas.height = 180;
     const ctx    = canvas.getContext('2d');
@@ -42,12 +52,15 @@ function runMeta({ record, onThumb, onDuration }) {
     let attempts = 0;
     let timer = null;
 
+    activeProbeVideos.set(record.src, video);
+
     const cleanup = () => {
       clearTimeout(timer);
       video.removeEventListener('loadeddata', handleLoadedData);
       video.removeEventListener('seeked', handleSeeked);
       video.removeEventListener('error', handleError);
       video.removeAttribute('src');
+      activeProbeVideos.delete(record.src);
       video.load();
     };
 
