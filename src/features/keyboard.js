@@ -2,17 +2,14 @@
  * @file On-screen keyboard
  */
 
-import { cfg } from './state.js';
-import { $ } from './ui.js';
-import { OSK_STRINGS, OSK_EXTRA_ROWS } from './i18n.js';
+import { cfg } from '../core/state.js';
+import { $ } from '../core/ui.js';
+import { OSK_STRINGS, OSK_EXTRA_ROWS } from '../core/i18n.js';
 
 const OSK_SELECTOR = 'input[type="text"], input[type="password"]';
 let oskTarget = null;
 let osk = null;
 let oskMode = 'full';
-
-let _checkAuthFn = null;
-export function registerCheckAuth(fn) { _checkAuthFn = fn; }
 
 function getOskLanguage() {
   return OSK_STRINGS[cfg.language] ? cfg.language : 'en';
@@ -83,7 +80,7 @@ export function hideOnScreenKeyboard() {
 
 function submitFromOsk(input) {
   if (!input) return;
-  if (input.id === 'auth-input') { if (_checkAuthFn) _checkAuthFn(); return; }
+  if (input.id === 'auth-input') { $('auth-btn')?.click(); return; }
   if (input.id === 'pw1' || input.id === 'pw2') { $('panel-save').click(); return; }
   input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
   input.dispatchEvent(new KeyboardEvent('keyup', { key: 'Enter', bubbles: true }));
@@ -104,7 +101,7 @@ function showOnScreenKeyboard(input) {
   overlay.setAttribute('aria-hidden', 'false');
 }
 
-export function initOnScreenKeyboard() {
+export function initKeyboard() {
   const overlay = $('osk-overlay');
   const container = $('osk-container');
   if (!overlay || !container) return;
@@ -159,4 +156,7 @@ export function initOnScreenKeyboard() {
     const isTextFieldTap = shouldUseOsk(e.target);
     if (!isKeyboardTap && !isTextFieldTap) hideOnScreenKeyboard();
   });
+
+  window.addEventListener('kiosk:screenchange', e => { if (e.detail.name !== 'admin') hideOnScreenKeyboard(); });
+  window.addEventListener('kiosk:languagechange', () => syncOskLanguage());
 }

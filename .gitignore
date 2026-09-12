@@ -7,10 +7,13 @@ yarn.lock
 .env
 .env.local
 .env.*.local
-.kiosk-server.pid
-.kiosk-browser.pid
+
+# Kiosk runtime / user state (preserve original locations)
+bin/.kiosk-server.pid
+bin/.kiosk-browser.pid
 bin/.firefox-kiosk-profile/
 bin/kiosk-config.json
+.runtime/
 
 # IDE
 .vscode/
@@ -28,8 +31,7 @@ dist/
 build/
 logs/*
 !logs/.gitkeep
-!media/.gitkeep
 
-# Media files
+# Media installation content
 media/*
-manifest.js
+!media/.gitkeep

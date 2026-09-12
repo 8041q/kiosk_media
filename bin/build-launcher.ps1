@@ -5,7 +5,7 @@
 
 $root = Split-Path $PSScriptRoot -Parent
 $cs   = Join-Path $PSScriptRoot "kiosk-launcher.cs"
-$ico  = Join-Path $PSScriptRoot "favicon.ico"
+$ico  = Join-Path $PSScriptRoot ".\kiosk_media\assets\favicon.ico"
 $out  = Join-Path $root "Kiosk.exe"
 $csc  = "C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe"
 

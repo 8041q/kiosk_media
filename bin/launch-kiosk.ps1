@@ -1,23 +1,25 @@
 $ErrorActionPreference = 'Stop'
 
 $projectRoot = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
-$manifestScript = Join-Path $projectRoot 'bin\generate-media-manifest.ps1'
-& $manifestScript
-
 $serverScript = Join-Path $projectRoot 'bin\serve-kiosk.ps1'
 $serverPort = 8765
-$serverUrl = "http://127.0.0.1:$serverPort/index.html"
+$baseUrl = "http://127.0.0.1:$serverPort"
+$serverUrl = "$baseUrl/index.html"
 $pidFile = Join-Path $projectRoot 'bin\.kiosk-server.pid'
 $browserPidFile = Join-Path $projectRoot 'bin\.kiosk-browser.pid'
 $kioskProfileDir = Join-Path $projectRoot 'bin\.firefox-kiosk-profile'
 $serverOutLog = Join-Path $projectRoot 'logs\.kiosk-server.out.log'
 $serverErrLog = Join-Path $projectRoot 'logs\.kiosk-server.err.log'
 
-# Pre-create the kiosk profile and write first-run suppression prefs so the kiosk URL
-# loads immediately on the very first launch without any welcome or import UI.
+if (-not (Test-Path -LiteralPath (Join-Path $projectRoot 'logs'))) {
+  New-Item -ItemType Directory -Path (Join-Path $projectRoot 'logs') -Force | Out-Null
+}
+
 if (-not (Test-Path -LiteralPath $kioskProfileDir -PathType Container)) {
   New-Item -ItemType Directory -Path $kioskProfileDir -Force | Out-Null
 }
+
+# Preserve the original kiosk Firefox profile location and preferences.
 $userJsPath = Join-Path $kioskProfileDir 'user.js'
 if (-not (Test-Path -LiteralPath $userJsPath)) {
   $userJs = @'
@@ -32,56 +34,35 @@ user_pref("toolkit.telemetry.reportingpolicy.firstRun", false);
   Set-Content -LiteralPath $userJsPath -Value $userJs -Encoding ASCII
 }
 
-if (-not (Test-Path -LiteralPath $serverScript)) {
+if (-not (Test-Path -LiteralPath $serverScript -PathType Leaf)) {
   throw "Local server script was not found: $serverScript"
 }
 
-function Test-ServerSupportsApi {
-  param(
-    [string]$BaseUrl,
-    [string]$ApiPath
-  )
-
+function Test-KioskServerV2 {
   try {
-    Invoke-WebRequest -Uri "$BaseUrl$ApiPath" -Method Post -UseBasicParsing -TimeoutSec 2 | Out-Null
-    return $true
+    $health = Invoke-RestMethod -Uri "$baseUrl/api/health" -Method Get -TimeoutSec 2
+    return ($health.ok -and ([int]$health.version -ge 2))
   } catch {
     return $false
   }
 }
 
-$serverRunning = $false
-if (Test-Path -LiteralPath $pidFile) {
-  $existingPid = (Get-Content -LiteralPath $pidFile -Raw).Trim()
-  if ($existingPid -match '^[0-9]+$') {
-    $proc = Get-Process -Id ([int]$existingPid) -ErrorAction SilentlyContinue
-    if ($proc) {
-      $serverRunning = $true
-
-      $baseUrl = "http://127.0.0.1:$serverPort"
-      $supportsScanApi = Test-ServerSupportsApi -BaseUrl $baseUrl -ApiPath '/api/scan'
-      $supportsExitApi = Test-ServerSupportsApi -BaseUrl $baseUrl -ApiPath '/api/exit'
-
-      # Recycle stale server builds that do not expose current runtime APIs.
-      if (-not ($supportsScanApi -and $supportsExitApi)) {
-        try {
-          Stop-Process -Id $proc.Id -Force -ErrorAction Stop
-        } catch {
-          # Continue; startup below will fail loudly if this process is still binding the port.
-        }
-
-        Remove-Item -LiteralPath $pidFile -Force -ErrorAction SilentlyContinue
-        $serverRunning = $false
-      }
-    } else {
-      Remove-Item -LiteralPath $pidFile -Force -ErrorAction SilentlyContinue
+function Stop-PidFileProcess {
+  param([string]$Path)
+  if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) { return }
+  try {
+    $raw = (Get-Content -LiteralPath $Path -Raw -ErrorAction SilentlyContinue).Trim()
+    if ($raw -match '^[0-9]+$') {
+      Stop-Process -Id ([int]$raw) -Force -ErrorAction SilentlyContinue
     }
-  } else {
-    Remove-Item -LiteralPath $pidFile -Force -ErrorAction SilentlyContinue
+  } finally {
+    Remove-Item -LiteralPath $Path -Force -ErrorAction SilentlyContinue
   }
 }
 
+$serverRunning = Test-KioskServerV2
 if (-not $serverRunning) {
+  Stop-PidFileProcess -Path $pidFile
   Remove-Item -LiteralPath $serverOutLog -Force -ErrorAction SilentlyContinue
   Remove-Item -LiteralPath $serverErrLog -Force -ErrorAction SilentlyContinue
 
@@ -95,123 +76,94 @@ if (-not $serverRunning) {
 
   Set-Content -LiteralPath $pidFile -Value $serverProc.Id -Encoding ASCII
 
-  Start-Sleep -Milliseconds 120
-  if ($serverProc.HasExited) {
-    $stderr = if (Test-Path -LiteralPath $serverErrLog) { Get-Content -LiteralPath $serverErrLog -Raw } else { '' }
-    $stdout = if (Test-Path -LiteralPath $serverOutLog) { Get-Content -LiteralPath $serverOutLog -Raw } else { '' }
-    throw "Kiosk server exited during startup.`nSTDERR:`n$stderr`nSTDOUT:`n$stdout"
-  }
-
   $serverReady = $false
-  for ($i = 0; $i -lt 25; $i++) {
-    try {
-      Invoke-WebRequest -Uri $serverUrl -Method Head -UseBasicParsing -TimeoutSec 1 | Out-Null
-      $serverReady = $true
-      break
-    } catch {
-      if ($serverProc.HasExited) {
-        $stderr = if (Test-Path -LiteralPath $serverErrLog) { Get-Content -LiteralPath $serverErrLog -Raw } else { '' }
-        $stdout = if (Test-Path -LiteralPath $serverOutLog) { Get-Content -LiteralPath $serverOutLog -Raw } else { '' }
-        throw "Kiosk server exited during readiness check.`nSTDERR:`n$stderr`nSTDOUT:`n$stdout"
-      }
-      Start-Sleep -Milliseconds 120
+  for ($i = 0; $i -lt 40; $i++) {
+    Start-Sleep -Milliseconds 125
+    if ($serverProc.HasExited) {
+      $stderr = if (Test-Path -LiteralPath $serverErrLog) { Get-Content -LiteralPath $serverErrLog -Raw } else { '' }
+      $stdout = if (Test-Path -LiteralPath $serverOutLog) { Get-Content -LiteralPath $serverOutLog -Raw } else { '' }
+      throw "Kiosk server exited during startup.`nSTDERR:`n$stderr`nSTDOUT:`n$stdout"
     }
+    if (Test-KioskServerV2) { $serverReady = $true; break }
   }
 
   if (-not $serverReady) {
-      throw "Kiosk server did not become ready at $serverUrl"
-    }
+    throw "Kiosk server did not become ready at $serverUrl. Check logs\.kiosk-server.err.log"
+  }
+}
+
+function Resolve-FirefoxPath {
+  $candidatePaths = @()
+
+  if ($env:ProgramFiles) {
+    $candidatePaths += (Join-Path $env:ProgramFiles 'Mozilla Firefox\firefox.exe')
+  }
+  if (${env:ProgramFiles(x86)}) {
+    $candidatePaths += (Join-Path ${env:ProgramFiles(x86)} 'Mozilla Firefox\firefox.exe')
+  }
+  if ($env:LocalAppData) {
+    $candidatePaths += (Join-Path $env:LocalAppData 'Mozilla Firefox\firefox.exe')
   }
 
-  function Resolve-FirefoxPath {
-    $candidatePaths = @()
-
-    if ($env:ProgramFiles) {
-      $candidatePaths += (Join-Path $env:ProgramFiles 'Mozilla Firefox\firefox.exe')
-    }
-
-    if (${env:ProgramFiles(x86)}) {
-      $candidatePaths += (Join-Path ${env:ProgramFiles(x86)} 'Mozilla Firefox\firefox.exe')
-    }
-
-    if ($env:LocalAppData) {
-      $candidatePaths += (Join-Path $env:LocalAppData 'Mozilla Firefox\firefox.exe')
-    }
-
-    foreach ($registryPath in @(
-      'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\firefox.exe',
-      'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\App Paths\firefox.exe',
-      'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\firefox.exe'
-    )) {
-      try {
-        $defaultValue = (Get-ItemProperty -Path $registryPath -ErrorAction Stop).'(default)'
-        if ($defaultValue) {
-          $candidatePaths += $defaultValue
-        }
-      } catch {
-        # Ignore missing registry keys.
-      }
-    }
-
-    $firefoxCmd = Get-Command firefox.exe -ErrorAction SilentlyContinue
-    if ($firefoxCmd -and $firefoxCmd.Source) {
-      $candidatePaths += $firefoxCmd.Source
-    }
-
-    foreach ($candidate in ($candidatePaths | Select-Object -Unique)) {
-      if ($candidate -and (Test-Path -LiteralPath $candidate)) {
-        return $candidate
-      }
-    }
-
-    return $null
+  foreach ($registryPath in @(
+    'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\firefox.exe',
+    'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\App Paths\firefox.exe',
+    'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\firefox.exe'
+  )) {
+    try {
+      $defaultValue = (Get-ItemProperty -Path $registryPath -ErrorAction Stop).'(default)'
+      if ($defaultValue) { $candidatePaths += $defaultValue }
+    } catch {}
   }
 
-  $firefoxPath = Resolve-FirefoxPath
-  if (-not $firefoxPath) {
-    throw "Firefox executable was not found. Install Mozilla Firefox, or add firefox.exe to PATH, then re-run launch-kiosk.cmd."
+  $firefoxCmd = Get-Command firefox.exe -ErrorAction SilentlyContinue
+  if ($firefoxCmd -and $firefoxCmd.Source) { $candidatePaths += $firefoxCmd.Source }
+
+  foreach ($candidate in ($candidatePaths | Select-Object -Unique)) {
+    if ($candidate -and (Test-Path -LiteralPath $candidate -PathType Leaf)) { return $candidate }
   }
+  return $null
+}
 
-  # Kill any leftover Firefox processes from a previous kiosk session before launching.
-  if (Test-Path -LiteralPath $browserPidFile) {
-    $stalePid = (Get-Content -LiteralPath $browserPidFile -Raw -ErrorAction SilentlyContinue).Trim()
-    if ($stalePid -match '^[0-9]+$') {
-      & taskkill /F /T /PID $stalePid 2>&1 | Out-Null
-    }
+$firefoxPath = Resolve-FirefoxPath
+if (-not $firefoxPath) {
+  throw 'Firefox executable was not found. Install Mozilla Firefox, or add firefox.exe to PATH.'
+}
+
+# Kill only the Firefox process previously launched by this kiosk.
+if (Test-Path -LiteralPath $browserPidFile -PathType Leaf) {
+  $stalePid = (Get-Content -LiteralPath $browserPidFile -Raw -ErrorAction SilentlyContinue).Trim()
+  if ($stalePid -match '^[0-9]+$') {
+    & taskkill /F /T /PID ([int]$stalePid) 2>&1 | Out-Null
   }
-  # Sweep for any remaining kiosk-URL firefox processes (catches orphaned child processes).
-  $escapedUrl = [Regex]::Escape($serverUrl)
-  Get-CimInstance Win32_Process -Filter "Name='firefox.exe'" -ErrorAction SilentlyContinue |
-    Where-Object { $_.CommandLine -and $_.CommandLine -match $escapedUrl } |
-    ForEach-Object { & taskkill /F /T /PID $_.ProcessId 2>&1 | Out-Null }
+}
 
-  Remove-Item -LiteralPath $browserPidFile -Force -ErrorAction SilentlyContinue
+# Also catch an orphaned kiosk Firefox instance using this URL.
+$escapedUrl = [Regex]::Escape($serverUrl)
+Get-CimInstance Win32_Process -Filter "Name='firefox.exe'" -ErrorAction SilentlyContinue |
+  Where-Object { $_.CommandLine -and $_.CommandLine -match $escapedUrl } |
+  ForEach-Object { & taskkill /F /T /PID $_.ProcessId 2>&1 | Out-Null }
 
-  # Remove profile lock file left behind by a previous force-kill.
-  # Firefox silently exits in kiosk mode when it finds a stale lock, so we clear it first.
-  $profileLock = Join-Path $kioskProfileDir 'parent.lock'
-  Remove-Item -LiteralPath $profileLock -Force -ErrorAction SilentlyContinue
+Remove-Item -LiteralPath $browserPidFile -Force -ErrorAction SilentlyContinue
+Remove-Item -LiteralPath (Join-Path $kioskProfileDir 'parent.lock') -Force -ErrorAction SilentlyContinue
 
-  $launchStartedAt = Get-Date
-  $browserProc = Start-Process -FilePath $firefoxPath -WorkingDirectory $projectRoot -ArgumentList @('-new-instance', '-no-remote', '-profile', $kioskProfileDir, '-kiosk', $serverUrl) -PassThru
+$browserProc = Start-Process -FilePath $firefoxPath -WorkingDirectory $projectRoot -ArgumentList @(
+  '-new-instance', '-no-remote', '-profile', $kioskProfileDir, '-kiosk', $serverUrl
+) -PassThru
 
-  Start-Sleep -Milliseconds 700
-  $resolvedBrowserPid = $null
+Start-Sleep -Milliseconds 700
+$resolvedBrowserPid = $null
+$kioskProc = Get-CimInstance Win32_Process -Filter "Name='firefox.exe'" -ErrorAction SilentlyContinue |
+  Where-Object { $_.CommandLine -and $_.CommandLine -match [Regex]::Escape($serverUrl) } |
+  Sort-Object CreationDate -Descending |
+  Select-Object -First 1
 
-  $kioskProc = Get-CimInstance Win32_Process -Filter "Name='firefox.exe'" -ErrorAction SilentlyContinue |
-    Where-Object {
-      $_.CommandLine -and
-      $_.CommandLine -match [Regex]::Escape($serverUrl)
-    } |
-    Sort-Object CreationDate -Descending |
-    Select-Object -First 1
+if ($kioskProc) {
+  $resolvedBrowserPid = [int]$kioskProc.ProcessId
+} elseif ($browserProc -and -not $browserProc.HasExited) {
+  $resolvedBrowserPid = [int]$browserProc.Id
+}
 
-  if ($kioskProc) {
-    $resolvedBrowserPid = [int]$kioskProc.ProcessId
-  } elseif ($browserProc -and -not $browserProc.HasExited) {
-    $resolvedBrowserPid = [int]$browserProc.Id
-  }
-
-  if ($null -ne $resolvedBrowserPid) {
-    Set-Content -LiteralPath $browserPidFile -Value $resolvedBrowserPid -Encoding ASCII
-  }
+if ($null -ne $resolvedBrowserPid) {
+  Set-Content -LiteralPath $browserPidFile -Value $resolvedBrowserPid -Encoding ASCII
+}

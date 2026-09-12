@@ -1,172 +1,128 @@
-<p align="center">
-  <img src=".\bin\favicon.jpg" alt="Kiosk logo" width="220" />
-</p>
+# Exhibition Kiosk — v2
 
-<div align="center">
+Portable Windows exhibition kiosk for multilingual local video playback. The application runs in Firefox kiosk mode and is served by a loopback-only PowerShell HTTP server.
 
-[![License](https://img.shields.io/badge/License-MIT-green)](https://opensource.org/licenses/MIT)
-[![Stars](https://img.shields.io/github/stars/8041q/kiosk_media?style=flat)](https://github.com/8041q/kiosk_media/stargazers)
-[![Issues](https://img.shields.io/github/issues/8041q/kiosk_media)](https://github.com/8041q/kiosk_media/issues)
+## Upgrade / drop-in installation
 
-</div>
+This package is designed to be extracted **over the existing repository**. Do not delete the existing repo first. The existing `kiosk.exe`, `assets/logo.png`, `assets/simple-keyboard.js`, `assets/simple-keyboard.css`, `bin/favicon.ico`, `bin/favicon.jpg`, your `media/` folders, `bin/kiosk-config.json`, and `bin/.firefox-kiosk-profile/` are intentionally preserved.
 
-### Exhibition Kiosk — Portable
-<p align="center"><em>Fullscreen media kiosk for exhibitions, with multilingual playback, admin controls, and portable local hosting.</em></p>
+The v2 launcher continues to use the original Firefox profile path (`bin/.firefox-kiosk-profile`) and the original PID/config locations, so an existing kiosk installation keeps its browser state and settings. The legacy `generate-media-manifest.ps1` and `ffmpeg-wrapper.ps1` are retained for manual/backward-compatible tooling, but the v2 UI no longer depends on the generated manifest.
 
----
+If startup fails, `bin/launch-kiosk.cmd` now keeps the console open and points to `logs/.kiosk-server.err.log` and `logs/.kiosk-server.out.log`.
 
-# Exhibition Kiosk
+## v2 architecture
 
-A fullscreen kiosk application for displaying media content in exhibitions. Built with HTML5, CSS3, and JavaScript, running on Firefox in kiosk mode with multilingual support.
-
-Currently only works on Windows. Linux compatibility will be the next implementation.
-
-## Features
-
-- **Fullscreen Kiosk Mode**: Runs as a dedicated exhibition display
-- **Multilingual Support**: Content organized by language (English, French, Portuguese, Spanish, Chinese)
-- **Media Management**: Add, remove, and scan for media without restarting
-- **Local Server**: Runs on a local HTTP server for secure file handling and thumbnail generation
-- **Windows Shortcuts**: Easy desktop integration with auto-generated shortcuts
-
-## How to Run
-
-### Quick Start
-
-Double-click one of these to launch the kiosk:
-
-1. **`kiosk.exe`** (recommended) - Root launcher with app icon
-2. **`kiosk.exe.lnk`** - Shortcut (can be recreated via PowerShell)
-3. **`bin\\launch-kiosk.cmd`** - Script fallback launcher
-
-### What Happens
-
-- A local web server starts on `http://127.0.0.1:8765`
-- Firefox opens in fullscreen kiosk mode
-- Media manifest is generated and loaded from the `media/` folder
-
-### Manual Setup (Windows PowerShell)
-
-If shortcuts need to be recreated after moving the folder:
-
-```powershell
-.\bin\create-kiosk-shortcut.ps1
-```
-
-## Media Folder Structure
-
-The `media/` folder contains videos organized by language:
-
-```
-media/
-  ├── en/          # English videos
-  ├── fr/          # French videos
-  ├── pt-pt/       # Portuguese videos
-  ├── sp/          # Spanish videos
-  ├── zh/          # Chinese videos
-  └── manifest.js  # Auto-generated list of media files
-```
-
-### Adding Videos
-
-1. **Place video files** in the appropriate language folder (e.g., `media/en/`)
-   - Supported formats: MP4, WebM, OGG, etc.
-   - Example: `media/en/my-video.mp4`
-
-2. **Scan for new media** using the app interface
-   - Press the scan button in the app to refresh the media list
-   - OR restart the kiosk to auto-scan
-
-3. **App displays the videos** in the content grid
-
-### Removing Videos
-
-1. **Delete video files** from the media folder
-2. **Scan again** in the app to update the list
-3. Videos are removed from the display
-
-### Manifest File
-
-The `media/manifest.js` file is **auto-generated** each time the app starts or a scan is made. It contains:
-
-- List of all available videos by language
-- File paths and metadata
-- Used by the app to populate the display grid
-
-Do NOT edit `manifest.js` manually—it's regenerated on every startup.
-
-## Project Structure
-
-```
+```text
 kiosk_media/
-  ├── index.html                    # Main application UI
-  ├── kiosk.exe                     # Portable launcher executable
-  ├── README.md                     # This file
-  │
-  ├── bin/
-  │   ├── launch-kiosk.cmd          # Script wrapper used by kiosk.exe
-  │   ├── launch-kiosk.ps1          # Main launcher (starts server + Firefox)
-  │   ├── serve-kiosk.ps1           # Local HTTP server
-  │   ├── generate-media-manifest.ps1 # Creates manifest.js from media files
-  │   ├── kiosk-launcher.cs         # Source for root kiosk.exe launcher
-  │   └── create-kiosk-shortcut.ps1 # Creates desktop shortcut
-  │
-  ├── media/
-  │   ├── en/, fr/, pt-pt/, sp/, zh/  # Language-specific media folders
-  │   └── manifest.js                 # Auto-generated media list
-  │
-  ├── assets/                        # Images, styles, and static files
-  ├── logs/                          # Application logs
-  └── .git/                          # Version control
+├─ index.html
+├─ kiosk.exe                       # existing launcher; unchanged
+├─ assets/
+│  ├─ app.css                      # new application styles
+│  ├─ simple-keyboard.js           # existing vendor asset, preserved
+│  ├─ simple-keyboard.css          # existing vendor asset, preserved
+│  └─ logo.*                       # existing branding, preserved
+├─ src/
+│  ├─ app.js                       # bootstrap only
+│  ├─ core/
+│  │  ├─ api.js                    # localhost API + session token
+│  │  ├─ state.js                  # state + persistence + migration
+│  │  ├─ ui.js                     # common UI/theme/screen helpers
+│  │  └─ i18n.js                   # translations
+│  └─ features/
+│     ├─ library.js                # catalog/language/thumbnails
+│     ├─ player.js                 # playback/HUD/volume
+│     ├─ admin.js                  # settings/auth/navigation
+│     ├─ video-processing.js       # media health + job client
+│     └─ keyboard.js               # on-screen keyboard logic
+├─ server/
+│  ├─ media.ps1                    # catalog/ffprobe/remux/transcode
+│  └─ media-job.ps1                # background processing worker
+├─ bin/
+│  ├─ launch-kiosk.cmd
+│  ├─ launch-kiosk.ps1             # keeps the original Firefox-profile/PID paths
+│  ├─ serve-kiosk.ps1              # HTTP server + API/static files
+│  ├─ generate-media-manifest.ps1  # retained legacy/manual helper
+│  ├─ ffmpeg-wrapper.ps1           # retained legacy/manual helper
+│  ├─ create-kiosk-shortcut.ps1
+│  ├─ kiosk-launcher.cs
+│  ├─ kiosk-config.json            # existing user settings; not overwritten
+│  └─ .firefox-kiosk-profile/      # existing Firefox profile; preserved
+├─ media/
+│  ├─ en/ zh/ pt/ es/ fr/
+│  └─ .originals/                  # backups created by video processing
+└─ logs/
 ```
 
-## System Requirements
+No v2 startup step deletes the old assets, profile, configuration, or helper scripts. The new UI simply stops depending on `media/manifest.js`.
 
-- **Windows 7 or later**
-- **Firefox**
-- **PowerShell**
+## Run
 
-## Troubleshooting
+Double-click `kiosk.exe` as before. The existing executable still calls `bin\launch-kiosk.cmd`, so it does not need to be rebuilt for this refactor.
 
-### Admin mode/Settings
-- Password: 1234
+The local server listens only on `http://127.0.0.1:8765`.
 
-### Firefox won't start
-- Ensure Firefox is installed in a standard location (Program Files, AppData, etc.)
-- Check that no other kiosk instance is running on port 8765
+## Media
 
-### Videos not appearing
-- Verify video files are in the correct `media/[language]/` folder
-- Run the app's media scan (or restart the app)
-- Check `logs/.kiosk-server.log` for errors
+Place videos in one of:
 
-### Port 8765 already in use
-- Another application or previous session is using this port
-- Close any running kiosk or Powershell instances
-- Restart the application
-
-## Troubleshoot
-Firefox's HTML5 video player only supports certain video codecs: **H.264 (recommended), H.265, VP9, AV1**. Some older files (e.g., MPEG-4 Part 2, DivX/Xvid) will not play—audio may work, but video will be blank or missing.
-
-**How to check a video's codec:**
-```powershell
-ffmpeg\bin\ffprobe.exe -v error -select_streams v:0 -show_entries stream=codec_name,profile,pix_fmt -of default=nw=1 "your_file_path.mp4"
-```
-If you see `mpeg4` or `Simple Profile` or the pixel format is yuv420p10le, you must re-encode the file.
-
-**How to re-encode to H.264 (recommended for Firefox):**
-```powershell
-ffmpeg\bin\ffmpeg.exe -i YOUR_ORIGINAL_FILE.mp4 -c:v libx264 -pix_fmt yuv420p -crf 18 -preset fast -movflags faststart -c:a copy YOUR_EDITED_FILE_NEW_NAME.mp4
+```text
+media/en/
+media/zh/
+media/pt/
+media/es/
+media/fr/
 ```
 
-If the video still won't play after converting (missing codec error - older Windows 10), add -profile:v high -level:v 3.1 to the command, use this instead:
-```
-ffmpeg\bin\ffmpeg.exe -i YOUR_ORIGINAL_FILE.mp4 -c:v libx264 -profile:v high -level:v 3.1 -pix_fmt yuv420p -crf 18 -preset fast -movflags faststart -c:a copy YOUR_EDITED_FILE_NEW_NAME.mp4
+The browser now reads the catalog directly from `GET /api/catalog`; `media/manifest.js` is no longer generated or used.
+
+## Video Processing
+
+The admin **Video Processing** page analyses every video once with `ffprobe` and classifies it as:
+
+- **Ready** — already compatible H.264/AAC MP4 with fast-start.
+- **Optimize** — compatible streams that can be remuxed to MP4 with `-c copy`; no quality loss.
+- **Transcode** — incompatible codec/pixel-format/audio that must be converted to H.264/AAC/yuv420p.
+- **Error** — file could not be inspected.
+
+Processing runs in a background PowerShell worker. The UI polls job state, shows per-file/overall progress, keeps a technical log, and can request cancellation.
+
+Before a processed output replaces an active file, the output is probed and verified. The original is then moved under `media/.originals/...` so it can be restored if necessary.
+
+### Profiles
+
+- **Recommended:** H.264 CRF 20 / AAC 192 kbps
+- **High quality:** H.264 CRF 17 / AAC 256 kbps
+- **Smaller files:** H.264 CRF 24 / AAC 128 kbps
+
+Profiles only affect transcoding. Optimize/remux operations always use stream copy.
+
+## FFmpeg discovery
+
+v2 looks for `ffmpeg` and `ffprobe` in this order:
+
+1. system `PATH`
+2. `tools/ffmpeg/bin/`
+3. `ffmpeg/bin/`
+4. `bin/ffmpeg/bin/`
+5. WinGet Gyan.FFmpeg package directories
+
+## Configuration behavior
+
+Admin changes are now transactional: controls edit a draft, **Save & Return** persists it, and **Return** discards it. Server persistence must succeed before the UI reports settings as saved.
+
+Media settings now use the complete relative source path (for example `media/pt/intro.mp4`) as the stable ID. v2 migrates matching legacy filename-based selections, volumes and titles when the catalog first loads.
+
+## Logs and troubleshooting
+
+Server output:
+
+```text
+logs/.kiosk-server.out.log
+logs/.kiosk-server.err.log
 ```
 
-**Tip:**
-You will need ffmpeg/ffprobe to run those commands above, download from https://www.gyan.dev/ffmpeg/builds/ and choose "ffmpeg-git-essentials.7z" under the section "git master builds", then unzip it, rename it to "ffmpeg" for easier use. Place it next to the videos or a fixed path.
+If Video Processing says FFmpeg is missing, install FFmpeg or place a build under `tools/ffmpeg/bin/` containing both `ffmpeg.exe` and `ffprobe.exe`.
 
 ## License
 
-MIT LICENSE
+MIT

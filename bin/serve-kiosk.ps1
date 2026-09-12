@@ -4,672 +4,252 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-
-if (-not $RootPath) {
-  $RootPath = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
-}
-
+if (-not $RootPath) { $RootPath = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path) }
 $resolvedRoot = (Resolve-Path -LiteralPath $RootPath).Path
+. (Join-Path $resolvedRoot 'server\media.ps1')
+
 $prefix = "http://127.0.0.1:$Port/"
-$manifestScriptPath = Join-Path $resolvedRoot 'bin\generate-media-manifest.ps1'
+$configFilePath = Join-Path $resolvedRoot 'bin\kiosk-config.json'
+$runtimeDir = Join-Path $resolvedRoot '.runtime'
+$jobsDir = Join-Path $runtimeDir 'jobs'
 $browserPidFilePath = Join-Path $resolvedRoot 'bin\.kiosk-browser.pid'
-$configFilePath     = Join-Path $resolvedRoot 'bin\kiosk-config.json'
+$sessionToken = [Guid]::NewGuid().ToString('N')
 $githubUrl = 'https://github.com/8041q/kiosk_media'
 $issuesUrl = 'https://github.com/8041q/kiosk_media/issues'
+foreach ($dir in @((Split-Path -Parent $configFilePath), $runtimeDir, $jobsDir, (Join-Path $resolvedRoot 'logs'))) {
+  if (-not (Test-Path -LiteralPath $dir)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }
+}
 
 $mimeTypes = @{
-  '.html' = 'text/html; charset=utf-8'
-  '.js'   = 'application/javascript; charset=utf-8'
-  '.css'  = 'text/css; charset=utf-8'
-  '.json' = 'application/json; charset=utf-8'
-  '.png'  = 'image/png'
-  '.jpg'  = 'image/jpeg'
-  '.jpeg' = 'image/jpeg'
-  '.svg'  = 'image/svg+xml'
-  '.gif'  = 'image/gif'
-  '.webp' = 'image/webp'
-  '.mp4'  = 'video/mp4'
-  '.webm' = 'video/webm'
-  '.mov'  = 'video/quicktime'
-  '.ico'  = 'image/x-icon'
-  '.txt'  = 'text/plain; charset=utf-8'
+  '.html'='text/html; charset=utf-8'; '.js'='application/javascript; charset=utf-8'; '.css'='text/css; charset=utf-8'; '.json'='application/json; charset=utf-8'
+  '.png'='image/png'; '.jpg'='image/jpeg'; '.jpeg'='image/jpeg'; '.svg'='image/svg+xml'; '.gif'='image/gif'; '.webp'='image/webp'; '.ico'='image/x-icon'
+  '.mp4'='video/mp4'; '.m4v'='video/mp4'; '.webm'='video/webm'; '.mov'='video/quicktime'; '.mkv'='video/x-matroska'; '.avi'='video/x-msvideo'; '.wmv'='video/x-ms-wmv'; '.mpg'='video/mpeg'; '.mpeg'='video/mpeg'; '.ogg'='video/ogg'; '.ogv'='video/ogg'
+  '.txt'='text/plain; charset=utf-8'
 }
 
-$listener = New-Object System.Net.HttpListener
-$listener.Prefixes.Add($prefix)
-$listener.Start()
+function Write-Log { param([string]$Message) $stamp = (Get-Date).ToString('HH:mm:ss.fff'); [Console]::Out.WriteLine(('[' + $stamp + '] ' + $Message)); [Console]::Out.Flush() }
+function Write-Err { param([string]$Message) $stamp = (Get-Date).ToString('HH:mm:ss.fff'); [Console]::Error.WriteLine(('[' + $stamp + '] ERROR ' + $Message)); [Console]::Error.Flush() }
 
-# ── Logging ──────────────────────────────────────────────────────────────────
-# Write-Log goes to stdout  → captured in .kiosk-server.out.log
-# Write-Err goes to stderr  → captured in .kiosk-server.err.log
-function Write-Log {
-  param([string]$Message)
-  $ts = (Get-Date).ToString('HH:mm:ss.fff')
-  [Console]::Out.WriteLine("[$ts] $Message")
-  [Console]::Out.Flush()
-}
-function Write-Err {
-  param([string]$Message)
-  $ts = (Get-Date).ToString('HH:mm:ss.fff')
-  [Console]::Error.WriteLine("[$ts] ERROR $Message")
-  [Console]::Error.Flush()
-}
-
-Write-Log "=== Kiosk server starting on $prefix ==="
-Write-Log "Root: $resolvedRoot"
-
-function Send-HttpResponse {
-  param(
-    [Parameter(Mandatory = $true)]
-    $Context,
-    [Parameter(Mandatory = $true)]
-    [int]$StatusCode,
-    [Parameter(Mandatory = $true)]
-    [string]$ContentType,
-    [byte[]]$Bytes = @()
-  )
-
+function Send-Response {
+  param($Context, [int]$StatusCode, [string]$ContentType, [byte[]]$Bytes=@())
   try {
-    $Context.Response.StatusCode = $StatusCode
-    $Context.Response.ContentType = $ContentType
-    $Context.Response.ContentLength64 = $Bytes.Length
-
-    if ($Context.Request.HttpMethod -ne 'HEAD' -and $Bytes.Length -gt 0) {
-      $Context.Response.OutputStream.Write($Bytes, 0, $Bytes.Length)
-    }
-  } catch {
-    # Swallow per-request write failures so the listener can continue serving.
-  } finally {
-    try { $Context.Response.OutputStream.Close() } catch {}
-  }
+    $Context.Response.StatusCode = $StatusCode; $Context.Response.ContentType = $ContentType; $Context.Response.ContentLength64 = $Bytes.Length
+    $Context.Response.Headers['Cache-Control'] = 'no-store'
+    if ($Context.Request.HttpMethod -ne 'HEAD' -and $Bytes.Length -gt 0) { $Context.Response.OutputStream.Write($Bytes, 0, $Bytes.Length) }
+  } catch {} finally { try { $Context.Response.OutputStream.Close() } catch {} }
 }
 
-function Send-JsonResponse {
-  param(
-    [Parameter(Mandatory = $true)]
-    $Context,
-    [Parameter(Mandatory = $true)]
-    [int]$StatusCode,
-    [Parameter(Mandatory = $true)]
-    [object]$Payload
-  )
-
-  $json = $Payload | ConvertTo-Json -Depth 6
-  $bytes = [System.Text.Encoding]::UTF8.GetBytes($json)
-  Send-HttpResponse -Context $Context -StatusCode $StatusCode -ContentType 'application/json; charset=utf-8' -Bytes $bytes
+function Send-Json {
+  param($Context, [int]$StatusCode, $Payload)
+  $json = $Payload | ConvertTo-Json -Depth 12
+  Send-Response -Context $Context -StatusCode $StatusCode -ContentType 'application/json; charset=utf-8' -Bytes ([System.Text.Encoding]::UTF8.GetBytes($json))
 }
 
-function Handle-ScanRequest {
-  param(
-    [Parameter(Mandatory = $true)]
-    $Context
-  )
-
-  if (-not (Test-Path -LiteralPath $manifestScriptPath -PathType Leaf)) {
-    Send-JsonResponse -Context $Context -StatusCode 500 -Payload @{
-      ok = $false
-      error = 'Manifest generation script not found.'
-    }
-    return
-  }
-
-  try {
-    & $manifestScriptPath | Out-Null
-    Send-JsonResponse -Context $Context -StatusCode 200 -Payload @{
-      ok = $true
-      manifest = 'media/manifest.js'
-      refreshedAt = [DateTime]::UtcNow.ToString('o')
-    }
-  } catch {
-    Send-JsonResponse -Context $Context -StatusCode 500 -Payload @{
-      ok = $false
-      error = $_.Exception.Message
-    }
-  }
+function Read-JsonBody {
+  param($Context)
+  $reader = New-Object System.IO.StreamReader($Context.Request.InputStream, [System.Text.Encoding]::UTF8)
+  try { $text = $reader.ReadToEnd() } finally { $reader.Close() }
+  if ([string]::IsNullOrWhiteSpace($text)) { return [pscustomobject]@{} }
+  return $text | ConvertFrom-Json
 }
 
-function Handle-FixVideosRequest {
-  param(
-    [Parameter(Mandatory = $true)]
-    $Context,
-    [string]$QualityMode = 'crf23',
-    [string[]]$Files = @()
-  )
-
-  if (-not (Test-Path -LiteralPath $manifestScriptPath -PathType Leaf)) {
-    Send-JsonResponse -Context $Context -StatusCode 500 -Payload @{
-      ok = $false
-      error = 'Manifest generation script not found.'
-    }
-    return
-  }
-
-  $validModes = @('crf23', 'lossless')
-  if ($validModes -notcontains $QualityMode) {
-    Send-JsonResponse -Context $Context -StatusCode 400 -Payload @{
-      ok = $false
-      error = 'Invalid quality mode. Must be "crf23" or "lossless".'
-    }
-    return
-  }
-
-  $args = @("-QualityMode", $QualityMode, "-FixVideos")
-  if ($Files.Count -gt 0) {
-    $args += "-SpecificFiles"
-    $args += $Files
-  }
-
-  try {
-    $result = & $manifestScriptPath @args 2>&1
-    $reportPath = Join-Path (Split-Path -Parent $manifestScriptPath) '..\media\video-fix-report.json'
-    
-    $report = @{}
-    if (Test-Path -LiteralPath $reportPath -PathType Leaf) {
-      $report = Get-Content -LiteralPath $reportPath -Raw -Encoding UTF8 | ConvertFrom-Json
-    }
-
-    Send-JsonResponse -Context $Context -StatusCode 200 -Payload @{
-      ok = $true
-      qualityMode = $QualityMode
-      summary = $report
-      output = $result -join "`n"
-    }
-  } catch {
-    Send-JsonResponse -Context $Context -StatusCode 500 -Payload @{
-      ok = $false
-      error = $_.Exception.Message
-    }
-  }
+function Test-MutationToken {
+  param($Context)
+  $token = $Context.Request.Headers['X-Kiosk-Token']
+  if ($token -and $token -eq $sessionToken) { return $true }
+  Send-Json -Context $Context -StatusCode 403 -Payload @{ ok=$false; error='Invalid kiosk session token.' }
+  return $false
 }
 
-function Handle-ProbeVideoRequest {
-  param(
-    [Parameter(Mandatory = $true)]
-    $Context
-  )
+function Get-SafeJobPath {
+  param([string]$JobId)
+  if ($JobId -notmatch '^[a-f0-9]{32}$') { throw 'Invalid job id.' }
+  return Join-Path $jobsDir ($JobId + '.json')
+}
 
-  if (-not (Test-Path -LiteralPath $manifestScriptPath -PathType Leaf)) {
-    Send-JsonResponse -Context $Context -StatusCode 500 -Payload @{
-      ok = $false
-      error = 'Manifest generation script not found.'
-    }
-    return
-  }
+function Read-JobState {
+  param([string]$JobId)
+  $path = Get-SafeJobPath -JobId $JobId
+  if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { return $null }
+  return Get-Content -LiteralPath $path -Raw -Encoding UTF8 | ConvertFrom-Json
+}
 
-  try {
-    $reader = New-Object System.IO.StreamReader($Context.Request.InputStream, [System.Text.Encoding]::UTF8)
-    $body   = $reader.ReadToEnd()
-    $reader.Close()
-    $data = $body | ConvertFrom-Json
+function Write-JobState {
+  param([string]$Path, $State)
+  $json = $State | ConvertTo-Json -Depth 12
+  [System.IO.File]::WriteAllText($Path, $json, (New-Object System.Text.UTF8Encoding -ArgumentList $false))
+}
 
-    if (-not $data.src) {
-      Send-JsonResponse -Context $Context -StatusCode 400 -Payload @{
-        ok = $false
-        error = 'Missing src parameter.'
+function Get-RunningJobState {
+  foreach ($file in (Get-ChildItem -LiteralPath $jobsDir -File -Filter '*.json' -ErrorAction SilentlyContinue | Sort-Object LastWriteTimeUtc -Descending)) {
+    try {
+      $job = Get-Content -LiteralPath $file.FullName -Raw -Encoding UTF8 | ConvertFrom-Json
+      if ($job.state -notin @('queued','running')) { continue }
+      $alive = $false
+      if ($job.workerPid -and ([string]$job.workerPid -match '^\d+$')) {
+        $alive = $null -ne (Get-Process -Id ([int]$job.workerPid) -ErrorAction SilentlyContinue)
+      } elseif ($job.state -eq 'queued') {
+        $age = [DateTime]::UtcNow - $file.LastWriteTimeUtc
+        $alive = $age.TotalSeconds -lt 30
       }
-      return
-    }
-
-    $fullPath = Join-Path $resolvedRoot ($data.src -replace '/', '\\')
-    if (-not (Test-Path -LiteralPath $fullPath -PathType Leaf)) {
-      Send-JsonResponse -Context $Context -StatusCode 404 -Payload @{
-        ok = $false
-        error = 'Video file not found.'
-      }
-      return
-    }
-
-    $ffmpegWrapper = Join-Path (Split-Path -Parent $manifestScriptPath) 'ffmpeg-wrapper.ps1'
-    if (-not (Test-Path -LiteralPath $ffmpegWrapper -PathType Leaf)) {
-      Send-JsonResponse -Context $Context -StatusCode 500 -Payload @{
-        ok = $false
-        error = 'FFmpeg wrapper not found.'
-      }
-      return
-    }
-
-    $codec = & $ffmpegWrapper -probe -select_streams v:0 -show_entries stream=codec_name,codec_tag_string -of csv=p=0 "$fullPath" 2>$null
-    $width = & $ffmpegWrapper -probe -select_streams v:0 -show_entries stream=width -of csv=p=0 "$fullPath" 2>$null
-    $height = & $ffmpegWrapper -probe -select_streams v:0 -show_entries stream=height -of csv=p=0 "$fullPath" 2>$null
-    $duration = & $ffmpegWrapper -probe -show_entries format=duration -of csv=p=0 "$fullPath" 2>$null
-    $startTime = & $ffmpegWrapper -probe -show_entries format=start_time -of csv=p=0 "$fullPath" 2>$null
-    $size = (Get-Item -LiteralPath $fullPath).Length
-    $ext = [System.IO.Path]::GetExtension($fullPath).ToLowerInvariant()
-
-    $isH264 = $codec -match 'h264|avc1'
-    $hasFastStart = $startTime -and [double]$startTime -le 0.1
-    $needsFix = (-not $isH264) -or (-not $hasFastStart) -or ($ext -notin @('.mp4'))
-
-    Send-JsonResponse -Context $Context -StatusCode 200 -Payload @{
-      ok = $true
-      codec = $codec.Trim()
-      width = if ($width) { [int]$width.Trim() } else { 0 }
-      height = if ($height) { [int]$height.Trim() } else { 0 }
-      duration = if ($duration) { [double]$duration.Trim() } else { 0 }
-      startTime = if ($startTime) { [double]$startTime.Trim() } else { 0 }
-      size = $size
-      needsFix = $needsFix
-      extension = $ext
-    }
-  } catch {
-    Send-JsonResponse -Context $Context -StatusCode 500 -Payload @{
-      ok = $false
-      error = $_.Exception.Message
-    }
+      if ($alive) { return $job }
+      $job.state = 'failed'
+      $job.error = 'The processing worker stopped unexpectedly.'
+      $job.finishedAt = [DateTime]::UtcNow.ToString('o')
+      $job.updatedAt = [DateTime]::UtcNow.ToString('o')
+      Write-JobState -Path $file.FullName -State $job
+    } catch {}
   }
+  return $null
+}
+
+function Has-RunningJob { return $null -ne (Get-RunningJobState) }
+
+function Start-MediaJob {
+  param([string]$Profile, [string[]]$Files)
+  if ($Profile -notin @('recommended','high','smaller')) { throw 'Invalid processing profile.' }
+  if (-not $Files -or $Files.Count -eq 0) { throw 'No files were selected.' }
+  if (Has-RunningJob) { throw 'Another video-processing job is already running.' }
+  $validated = @()
+  foreach ($src in $Files) {
+    $full = Resolve-KioskMediaPath -RootPath $resolvedRoot -Src ([string]$src)
+    if (-not (Test-Path -LiteralPath $full -PathType Leaf)) { throw "Media file not found: $src" }
+    $validated += [string]$src
+  }
+  $id = [Guid]::NewGuid().ToString('N'); $jobPath = Join-Path $jobsDir ($id + '.json')
+  $state = [pscustomobject]@{
+    id=$id; state='queued'; profile=$Profile; files=@($validated); total=$validated.Count; completed=0; current=''; currentPercent=0; overallPercent=0
+    workerPid=$null; results=@(); log=@(); createdAt=[DateTime]::UtcNow.ToString('o'); updatedAt=[DateTime]::UtcNow.ToString('o')
+    startedAt=$null; finishedAt=$null; error=''
+  }
+  Write-JobState -Path $jobPath -State $state
+  $worker = Join-Path $resolvedRoot 'server\media-job.ps1'
+  $args = @('-NoProfile','-ExecutionPolicy','Bypass','-File',('"{0}"' -f $worker),'-RootPath',('"{0}"' -f $resolvedRoot),'-JobPath',('"{0}"' -f $jobPath))
+  Start-Process -FilePath 'powershell.exe' -ArgumentList ($args -join ' ') -WindowStyle Hidden | Out-Null
+  return $id
 }
 
 function Get-PidFromFile {
-  param(
-    [Parameter(Mandatory = $true)]
-    [string]$PidFilePath
-  )
-
-  if (-not (Test-Path -LiteralPath $PidFilePath -PathType Leaf)) {
-    return $null
-  }
-
-  $rawPid = (Get-Content -LiteralPath $PidFilePath -Raw -ErrorAction SilentlyContinue).Trim()
-  if (-not ($rawPid -match '^[0-9]+$')) {
-    Remove-Item -LiteralPath $PidFilePath -Force -ErrorAction SilentlyContinue
-    return $null
-  }
-
-  return [int]$rawPid
+  param([string]$Path)
+  if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) { return $null }
+  $raw = (Get-Content -LiteralPath $Path -Raw -ErrorAction SilentlyContinue).Trim()
+  if ($raw -match '^\d+$') { return [int]$raw }
+  return $null
 }
 
 function Start-DetachedShutdownWorker {
-  param(
-    [Parameter(Mandatory = $true)]
-    [int]$ServerPid,
-    [Parameter(Mandatory = $true)]
-    [string]$BrowserPidFilePath,
-    [Parameter(Mandatory = $true)]
-    [string]$KioskUrl,
-    [int]$DelayMs = 1400
-  )
-
-  $workerScriptPath = Join-Path $env:TEMP ("kiosk-shutdown-{0}.ps1" -f [Guid]::NewGuid().ToString('N'))
-  $workerScript = @'
-param(
-  [int]$ServerPid,
-  [string]$BrowserPidFilePath,
-  [string]$KioskUrl,
-  [int]$DelayMs,
-  [string]$SelfScriptPath
-)
-
-Start-Sleep -Milliseconds $DelayMs
-
-function Stop-ProcessTree {
-  param([int]$PidToStop)
-  $result = & taskkill /F /T /PID $PidToStop 2>&1
-  return ($LASTEXITCODE -eq 0)
-}
-
-$stoppedAnyBrowser = $false
-
+  param([int]$ServerPid)
+  $workerPath = Join-Path $env:TEMP ('kiosk-shutdown-{0}.ps1' -f [Guid]::NewGuid().ToString('N'))
+  $script = @'
+param([int]$ServerPid,[string]$BrowserPidFile,[string]$SelfPath)
+Start-Sleep -Milliseconds 900
 try {
-  if (Test-Path -LiteralPath $BrowserPidFilePath -PathType Leaf) {
-    $rawPid = (Get-Content -LiteralPath $BrowserPidFilePath -Raw -ErrorAction SilentlyContinue).Trim()
-    if ($rawPid -match '^[0-9]+$') {
-      if (Stop-ProcessTree -PidToStop ([int]$rawPid)) {
-        $stoppedAnyBrowser = $true
-      }
-    }
-    Remove-Item -LiteralPath $BrowserPidFilePath -Force -ErrorAction SilentlyContinue
+  if (Test-Path -LiteralPath $BrowserPidFile) {
+    $raw=(Get-Content -LiteralPath $BrowserPidFile -Raw -ErrorAction SilentlyContinue).Trim()
+    if ($raw -match '^\d+$') { & taskkill /F /T /PID ([int]$raw) 2>&1 | Out-Null }
+    Remove-Item -LiteralPath $BrowserPidFile -Force -ErrorAction SilentlyContinue
   }
-
-  if (-not $stoppedAnyBrowser) {
-    $escapedUrl = [Regex]::Escape($KioskUrl)
-    $kioskProcesses = Get-CimInstance Win32_Process -Filter "Name='firefox.exe'" -ErrorAction SilentlyContinue |
-      Where-Object { $_.CommandLine -and $_.CommandLine -match $escapedUrl }
-
-    foreach ($proc in $kioskProcesses) {
-      if (Stop-ProcessTree -PidToStop ([int]$proc.ProcessId)) {
-        $stoppedAnyBrowser = $true
-      }
-    }
-  }
-
   & taskkill /F /T /PID $ServerPid 2>&1 | Out-Null
-} finally {
-  Remove-Item -LiteralPath $SelfScriptPath -Force -ErrorAction SilentlyContinue
-}
+} finally { Remove-Item -LiteralPath $SelfPath -Force -ErrorAction SilentlyContinue }
 '@
-
-  Set-Content -LiteralPath $workerScriptPath -Value $workerScript -Encoding ASCII
-  Start-Process -FilePath 'powershell.exe' -WindowStyle Hidden -ArgumentList @(
-    '-NoProfile',
-    '-ExecutionPolicy', 'Bypass',
-    '-File', $workerScriptPath,
-    '-ServerPid', $ServerPid,
-    '-BrowserPidFilePath', $BrowserPidFilePath,
-    '-KioskUrl', $KioskUrl,
-    '-DelayMs', $DelayMs,
-    '-SelfScriptPath', $workerScriptPath
-  ) | Out-Null
+  Set-Content -LiteralPath $workerPath -Value $script -Encoding ASCII
+  Start-Process -FilePath 'powershell.exe' -WindowStyle Hidden -ArgumentList @('-NoProfile','-ExecutionPolicy','Bypass','-File',('"{0}"' -f $workerPath),'-ServerPid',$ServerPid,'-BrowserPidFile',('"{0}"' -f $browserPidFilePath),'-SelfPath',('"{0}"' -f $workerPath)) | Out-Null
 }
 
-function Handle-ConfigGetRequest {
-  param(
-    [Parameter(Mandatory = $true)]
-    $Context
-  )
-
-  if (Test-Path -LiteralPath $configFilePath -PathType Leaf) {
-    try {
-      $json = Get-Content -LiteralPath $configFilePath -Raw -Encoding UTF8
-      # Validate it is parseable before sending
-      $null = $json | ConvertFrom-Json
-      $bytes = [System.Text.Encoding]::UTF8.GetBytes($json)
-      Send-HttpResponse -Context $Context -StatusCode 200 -ContentType 'application/json; charset=utf-8' -Bytes $bytes
-    } catch {
-      Send-JsonResponse -Context $Context -StatusCode 500 -Payload @{ ok = $false; error = $_.Exception.Message }
-    }
-  } else {
-    # No config yet — return empty object so the app uses its defaults
-    $bytes = [System.Text.Encoding]::UTF8.GetBytes('{}')
-    Send-HttpResponse -Context $Context -StatusCode 200 -ContentType 'application/json; charset=utf-8' -Bytes $bytes
+function Serve-StaticFile {
+  param($Context, [string]$RequestPath)
+  if ([string]::IsNullOrWhiteSpace($RequestPath)) { $RequestPath='index.html' }
+  $allowedStatic = ($RequestPath -eq 'index.html') -or $RequestPath.StartsWith('assets/') -or $RequestPath.StartsWith('src/') -or $RequestPath.StartsWith('media/') -or ($RequestPath -in @('bin/favicon.ico','bin/favicon.jpg'))
+  if (-not $allowedStatic) { Send-Response $Context 404 'text/plain; charset=utf-8' ([System.Text.Encoding]::UTF8.GetBytes('Not Found')); return }
+  $candidate = Join-Path $resolvedRoot ($RequestPath.Replace('/', [System.IO.Path]::DirectorySeparatorChar))
+  $full = [System.IO.Path]::GetFullPath($candidate)
+  $rootPrefix = $resolvedRoot.TrimEnd([char[]]@('\','/')) + [System.IO.Path]::DirectorySeparatorChar
+  if (-not ($full -eq $resolvedRoot -or $full.StartsWith($rootPrefix, [System.StringComparison]::OrdinalIgnoreCase))) { Send-Response $Context 403 'text/plain; charset=utf-8' ([System.Text.Encoding]::UTF8.GetBytes('Forbidden')); return }
+  if (Test-Path -LiteralPath $full -PathType Container) { $full = Join-Path $full 'index.html' }
+  if (-not (Test-Path -LiteralPath $full -PathType Leaf)) { Send-Response $Context 404 'text/plain; charset=utf-8' ([System.Text.Encoding]::UTF8.GetBytes('Not Found')); return }
+  $file = Get-Item -LiteralPath $full; $length=[int64]$file.Length; $ext=$file.Extension.ToLowerInvariant(); $contentType='application/octet-stream'
+  if ($mimeTypes.ContainsKey($ext)) { $contentType=$mimeTypes[$ext] }
+  $Context.Response.Headers['Accept-Ranges']='bytes'
+  $range=$Context.Request.Headers['Range']
+  $start=[int64]0; $end=$length-1; $partial=$false
+  if ($range -and $range -match '^bytes=(\d+)-(\d*)$') {
+    $start=[int64]$Matches[1]; if ($Matches[2]) { $end=[Math]::Min([int64]$Matches[2],$length-1) }; $partial=$true
+    if ($start -ge $length -or $end -lt $start) { $Context.Response.StatusCode=416; $Context.Response.Headers['Content-Range']="bytes */$length"; $Context.Response.OutputStream.Close(); return }
   }
-}
-
-function Handle-ConfigSaveRequest {
-  param(
-    [Parameter(Mandatory = $true)]
-    $Context
-  )
-
+  $sendLength=$end-$start+1; $Context.Response.StatusCode=200; if($partial){$Context.Response.StatusCode=206}; $Context.Response.ContentType=$contentType; $Context.Response.ContentLength64=$sendLength
+  if ($partial) { $Context.Response.Headers['Content-Range']="bytes $start-$end/$length" }
+  if ($RequestPath -notmatch '^media/') { $Context.Response.Headers['Cache-Control']='no-cache' }
+  if ($Context.Request.HttpMethod -eq 'HEAD') { $Context.Response.OutputStream.Close(); return }
+  $stream=[System.IO.File]::Open($full,[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::ReadWrite)
   try {
-    $reader = New-Object System.IO.StreamReader($Context.Request.InputStream, [System.Text.Encoding]::UTF8)
-    $body   = $reader.ReadToEnd()
-    $reader.Close()
-
-    # Validate JSON before writing
-    $null = $body | ConvertFrom-Json
-
-    # Ensure parent directory exists
-    $dir = Split-Path -Parent $configFilePath
-    if (-not (Test-Path -LiteralPath $dir -PathType Container)) {
-      New-Item -ItemType Directory -Path $dir -Force | Out-Null
-    }
-
-    [System.IO.File]::WriteAllText($configFilePath, $body, [System.Text.Encoding]::UTF8)
-
-    Send-JsonResponse -Context $Context -StatusCode 200 -Payload @{ ok = $true }
-  } catch {
-    Send-JsonResponse -Context $Context -StatusCode 400 -Payload @{ ok = $false; error = $_.Exception.Message }
-  }
+    if ($start -gt 0) { $stream.Seek($start,[IO.SeekOrigin]::Begin) | Out-Null }
+    $buffer=New-Object byte[] 262144; [int64]$remaining=$sendLength
+    while($remaining -gt 0) { $toRead=[int][Math]::Min($buffer.Length,$remaining); $read=$stream.Read($buffer,0,$toRead); if($read -le 0){break}; $Context.Response.OutputStream.Write($buffer,0,$read); $remaining-=$read }
+  } finally { $stream.Dispose(); try{$Context.Response.OutputStream.Close()}catch{} }
 }
 
-function Handle-ExitRequest {
-  param(
-    [Parameter(Mandatory = $true)]
-    $Context
-  )
-
-  $browserPid = Get-PidFromFile -PidFilePath $browserPidFilePath
-
-  Send-JsonResponse -Context $Context -StatusCode 200 -Payload @{
-    ok = $true
-    browserPid = $browserPid
-    shuttingDown = $true
-    stoppedAt = [DateTime]::UtcNow.ToString('o')
-  }
-
-  Start-DetachedShutdownWorker -ServerPid $PID -BrowserPidFilePath $browserPidFilePath -KioskUrl "http://127.0.0.1:$Port/index.html"
-}
-
-function Handle-OpenExternalRequest {
-  param(
-    [Parameter(Mandatory = $true)]
-    $Context,
-    [Parameter(Mandatory = $true)]
-    [string]$Target
-  )
-
-  $targetUrl = switch ($Target) {
-    'github' { $githubUrl }
-    'issues' { $issuesUrl }
-    default { $null }
-  }
-
-  if (-not $targetUrl) {
-    Send-JsonResponse -Context $Context -StatusCode 404 -Payload @{
-      ok = $false
-      error = 'Unknown external target.'
-    }
-    return
-  }
-
-  try {
-    Start-Process $targetUrl | Out-Null
-    Send-JsonResponse -Context $Context -StatusCode 200 -Payload @{
-      ok = $true
-      target = $Target
-      url = $targetUrl
-      openedAt = [DateTime]::UtcNow.ToString('o')
-    }
-  } catch {
-    Send-JsonResponse -Context $Context -StatusCode 500 -Payload @{
-      ok = $false
-      error = $_.Exception.Message
-      target = $Target
-    }
-  }
-}
+$listener=New-Object System.Net.HttpListener
+$listener.Prefixes.Add($prefix); $listener.Start()
+Write-Log "=== Kiosk v2 server starting on $prefix ==="
+Write-Log "Root: $resolvedRoot"
 
 try {
   while ($listener.IsListening) {
+    try { $context=$listener.GetContext() } catch { break }
     try {
-      $context = $listener.GetContext()
+      $path=[Uri]::UnescapeDataString($context.Request.Url.AbsolutePath.TrimStart('/')); $method=$context.Request.HttpMethod.ToUpperInvariant()
+      Write-Log ">> $method /$path"
+
+      if ($path -eq 'api/health' -and $method -eq 'GET') { Send-Json $context 200 @{ok=$true;version=2;time=[DateTime]::UtcNow.ToString('o')}; continue }
+      if ($path -eq 'api/session' -and $method -eq 'GET') { Send-Json $context 200 @{ok=$true;token=$sessionToken}; continue }
+      if ($path -eq 'api/catalog' -and $method -eq 'GET') { Send-Json $context 200 (Get-KioskCatalog -RootPath $resolvedRoot); continue }
+
+      if ($path -eq 'api/config') {
+        if ($method -eq 'GET') {
+          if (Test-Path -LiteralPath $configFilePath) { $raw=Get-Content -LiteralPath $configFilePath -Raw -Encoding UTF8; $null=$raw|ConvertFrom-Json; Send-Response $context 200 'application/json; charset=utf-8' ([System.Text.Encoding]::UTF8.GetBytes($raw)) }
+          else { Send-Json $context 200 @{} }
+        } elseif ($method -eq 'POST') {
+          if (-not (Test-MutationToken $context)) { continue }; $body=Read-JsonBody $context; $json=$body|ConvertTo-Json -Depth 10; [IO.File]::WriteAllText($configFilePath,$json,(New-Object System.Text.UTF8Encoding -ArgumentList $false)); Send-Json $context 200 @{ok=$true}
+        } else { Send-Json $context 405 @{ok=$false;error='Method Not Allowed'} }
+        continue
+      }
+
+      if ($path -eq 'api/video-analysis' -and $method -eq 'POST') {
+        if (-not (Test-MutationToken $context)) { continue }; $body=Read-JsonBody $context; $files=@(); if($body.files){$files=@($body.files|ForEach-Object{[string]$_})}; Send-Json $context 200 (Get-KioskLibraryAnalysis -RootPath $resolvedRoot -Files $files); continue
+      }
+
+      if ($path -eq 'api/video-jobs' -and $method -eq 'POST') {
+        if (-not (Test-MutationToken $context)) { continue }; $body=Read-JsonBody $context
+        try { $id=Start-MediaJob -Profile ([string]$body.profile) -Files @($body.files|ForEach-Object{[string]$_}); Send-Json $context 202 @{ok=$true;jobId=$id} }
+        catch { $status = 400; if ($_.Exception.Message -like 'Another*') { $status = 409 }; Send-Json $context $status @{ok=$false;error=$_.Exception.Message} }; continue
+      }
+
+      if ($path -eq 'api/video-jobs/current' -and $method -eq 'GET') {
+        $running=Get-RunningJobState; if($running){Send-Json $context 200 $running}else{Send-Json $context 200 @{ok=$true;state='idle'}}; continue
+      }
+
+      if ($path -match '^api/video-jobs/([a-f0-9]{32})$' -and $method -eq 'GET') {
+        $job=Read-JobState -JobId $Matches[1]; if($job){Send-Json $context 200 $job}else{Send-Json $context 404 @{ok=$false;error='Job not found.'}}; continue
+      }
+      if ($path -match '^api/video-jobs/([a-f0-9]{32})/cancel$' -and $method -eq 'POST') {
+        if (-not (Test-MutationToken $context)) { continue }; $job=Read-JobState -JobId $Matches[1]
+        if(-not $job){Send-Json $context 404 @{ok=$false;error='Job not found.'};continue}; $cancel=Join-Path $jobsDir ($Matches[1]+'.cancel'); Set-Content -LiteralPath $cancel -Value 'cancel' -Encoding ASCII; Send-Json $context 200 @{ok=$true}; continue
+      }
+
+      if ($path -eq 'api/open-github' -or $path -eq 'api/open-issues') {
+        if ($method -ne 'POST') { Send-Json $context 405 @{ok=$false;error='Method Not Allowed'}; continue }; if(-not(Test-MutationToken $context)){continue}
+        $url=$issuesUrl; if($path -eq 'api/open-github'){$url=$githubUrl}; Start-Process $url | Out-Null; Send-Json $context 200 @{ok=$true}; continue
+      }
+      if ($path -eq 'api/exit') {
+        if ($method -ne 'POST') { Send-Json $context 405 @{ok=$false;error='Method Not Allowed'}; continue }; if(-not(Test-MutationToken $context)){continue}
+        Send-Json $context 200 @{ok=$true;shuttingDown=$true;browserPid=(Get-PidFromFile $browserPidFilePath)}; Start-DetachedShutdownWorker -ServerPid $PID; continue
+      }
+
+      if ($path.StartsWith('api/')) { Send-Json $context 404 @{ok=$false;error='API route not found.'}; continue }
+      Serve-StaticFile -Context $context -RequestPath $path
     } catch {
-      break
+      Write-Err $_.Exception.Message
+      try { Send-Json $context 500 @{ok=$false;error=$_.Exception.Message} } catch {}
     }
-
-    $requestPath = [System.Uri]::UnescapeDataString($context.Request.Url.AbsolutePath.TrimStart('/'))
-    $reqMethod   = $context.Request.HttpMethod
-    $rangeHdr    = $context.Request.Headers['Range']
-    $rangeLog    = if ($rangeHdr) { " Range=[$rangeHdr]" } else { '' }
-    Write-Log ">> $reqMethod /$requestPath$rangeLog"
-
-    if ($requestPath -eq 'api/config') {
-      if ($context.Request.HttpMethod -eq 'GET') {
-        Handle-ConfigGetRequest -Context $context
-      } elseif ($context.Request.HttpMethod -eq 'POST') {
-        Handle-ConfigSaveRequest -Context $context
-      } else {
-        Send-JsonResponse -Context $context -StatusCode 405 -Payload @{
-          ok = $false
-          error = 'Method Not Allowed'
-        }
-      }
-      continue
-    }
-
-    if ($requestPath -eq 'api/scan') {
-      if ($context.Request.HttpMethod -eq 'POST') {
-        Handle-ScanRequest -Context $context
-      } else {
-        Send-JsonResponse -Context $context -StatusCode 405 -Payload @{
-          ok = $false
-          error = 'Method Not Allowed'
-        }
-      }
-      continue
-    }
-
-    if ($requestPath -eq 'api/fix-videos') {
-      if ($context.Request.HttpMethod -eq 'POST') {
-        $reader = New-Object System.IO.StreamReader($context.Request.InputStream, [System.Text.Encoding]::UTF8)
-        $body   = $reader.ReadToEnd()
-        $reader.Close()
-        $data = $body | ConvertFrom-Json
-        $qualityMode = if ($data.qualityMode) { $data.qualityMode } else { 'crf23' }
-        Handle-FixVideosRequest -Context $context -QualityMode $qualityMode
-      } else {
-        Send-JsonResponse -Context $context -StatusCode 405 -Payload @{
-          ok = $false
-          error = 'Method Not Allowed'
-        }
-      }
-      continue
-    }
-
-    if ($requestPath -eq 'api/probe-video') {
-      if ($context.Request.HttpMethod -eq 'POST') {
-        Handle-ProbeVideoRequest -Context $context
-      } else {
-        Send-JsonResponse -Context $context -StatusCode 405 -Payload @{
-          ok = $false
-          error = 'Method Not Allowed'
-        }
-      }
-      continue
-    }
-
-    if ($requestPath -eq 'api/exit') {
-      if ($context.Request.HttpMethod -eq 'POST') {
-        Handle-ExitRequest -Context $context
-      } else {
-        Send-JsonResponse -Context $context -StatusCode 405 -Payload @{
-          ok = $false
-          error = 'Method Not Allowed'
-        }
-      }
-      continue
-    }
-
-    if ($requestPath -eq 'api/open-github') {
-      if ($context.Request.HttpMethod -eq 'POST') {
-        Handle-OpenExternalRequest -Context $context -Target 'github'
-      } else {
-        Send-JsonResponse -Context $context -StatusCode 405 -Payload @{
-          ok = $false
-          error = 'Method Not Allowed'
-        }
-      }
-      continue
-    }
-
-    if ($requestPath -eq 'api/open-issues') {
-      if ($context.Request.HttpMethod -eq 'POST') {
-        Handle-OpenExternalRequest -Context $context -Target 'issues'
-      } else {
-        Send-JsonResponse -Context $context -StatusCode 405 -Payload @{
-          ok = $false
-          error = 'Method Not Allowed'
-        }
-      }
-      continue
-    }
-
-    if ([string]::IsNullOrWhiteSpace($requestPath)) {
-      $requestPath = 'index.html'
-    }
-
-    $candidatePath = Join-Path $resolvedRoot ($requestPath -replace '/', '\\')
-    $fullPath = [System.IO.Path]::GetFullPath($candidatePath)
-
-    if (-not $fullPath.StartsWith($resolvedRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
-      $bytes = [System.Text.Encoding]::UTF8.GetBytes('Forbidden')
-      Send-HttpResponse -Context $context -StatusCode 403 -ContentType 'text/plain; charset=utf-8' -Bytes $bytes
-      continue
-    }
-
-    if (Test-Path -LiteralPath $fullPath -PathType Container) {
-      $fullPath = Join-Path $fullPath 'index.html'
-    }
-
-    if (Test-Path -LiteralPath $fullPath -PathType Leaf) {
-      try {
-        $ext = [System.IO.Path]::GetExtension($fullPath).ToLowerInvariant()
-        $contentType = if ($mimeTypes.ContainsKey($ext)) { $mimeTypes[$ext] } else { 'application/octet-stream' }
-        $fileInfo   = Get-Item -LiteralPath $fullPath
-        $fileLength = $fileInfo.Length
-        Write-Log "   FILE: $fullPath  size=$fileLength  type=$contentType"
-
-        $rangeHeader = $context.Request.Headers['Range']
-        if ($rangeHeader -and ($rangeHeader -match 'bytes=(\d+)-(\d*)')) {
-          $start = [int64]$matches[1]
-          
-          $reqEnd = if ($matches[2] -ne '') { [int64]$matches[2] } else { $fileLength - 1 }
-          if ($reqEnd -ge $fileLength) { $reqEnd = $fileLength - 1 }
-
-          # Cap to 2 MB per response so the server never blocks for long
-          $maxChunk = 2MB
-          $end    = [Math]::Min($reqEnd, $start + $maxChunk - 1)
-
-          $length = $end - $start + 1
-          Write-Log "   RANGE requested: start=$start  end=$end  length=$length  fileSize=$fileLength"
-
-          $fs = [System.IO.File]::OpenRead($fullPath)
-          try {
-            $fs.Seek($start, [System.IO.SeekOrigin]::Begin) | Out-Null
-
-            $context.Response.StatusCode      = 206
-            $context.Response.ContentType     = $contentType
-            $context.Response.ContentLength64 = $length
-            $context.Response.AddHeader('Content-Range', "bytes $start-$end/$fileLength")
-            $context.Response.AddHeader('Accept-Ranges', 'bytes')
-            Write-Log "   RESP 206  Content-Range: bytes $start-$end/$fileLength  Content-Length: $length"
-
-            if ($context.Request.HttpMethod -ne 'HEAD') {
-              $chunkSize = 256KB
-              $remaining = $length
-              $totalSent = 0
-              $chunk = New-Object byte[] $chunkSize
-              while ($remaining -gt 0) {
-                $toRead = [Math]::Min($chunkSize, $remaining)
-                $read = $fs.Read($chunk, 0, $toRead)
-                if ($read -eq 0) { break }
-                $context.Response.OutputStream.Write($chunk, 0, $read)
-                $totalSent += $read
-                $remaining -= $read
-              }
-              Write-Log "   SENT $totalSent bytes to client"
-            }
-          } finally {
-            $fs.Close()
-            try { $context.Response.OutputStream.Close() } catch {}
-            Write-Log "   DONE range response"
-          }
-
-        } else {
-          Write-Log "   FULL request (no Range header)  size=$fileLength"
-          $bytes = [System.IO.File]::ReadAllBytes($fullPath)
-          Write-Log "   ReadAllBytes got $($bytes.Length) bytes"
-          $context.Response.StatusCode      = 200
-          $context.Response.ContentType     = $contentType
-          $context.Response.ContentLength64 = $fileLength
-          $context.Response.AddHeader('Accept-Ranges', 'bytes')
-          Write-Log "   RESP 200  Content-Length: $fileLength"
-          if ($context.Request.HttpMethod -ne 'HEAD' -and $bytes.Length -gt 0) {
-            $context.Response.OutputStream.Write($bytes, 0, $bytes.Length)
-            Write-Log "   SENT $($bytes.Length) bytes to client"
-          }
-          try { $context.Response.OutputStream.Close() } catch {}
-          Write-Log "   DONE full response"
-        }
-      } catch {
-        Write-Err "Exception serving '$requestPath': $($_.Exception.GetType().Name): $($_.Exception.Message)"
-        Write-Err "  Stack: $($_.ScriptStackTrace)"
-        try {
-          $errBytes = [System.Text.Encoding]::UTF8.GetBytes('Internal Server Error')
-          Send-HttpResponse -Context $context -StatusCode 500 -ContentType 'text/plain; charset=utf-8' -Bytes $errBytes
-        } catch {}
-      }
-      continue
-    }
-
-    Write-Log "   404 NOT FOUND: $fullPath"
-    $notFoundBytes = [System.Text.Encoding]::UTF8.GetBytes('Not Found')
-    Send-HttpResponse -Context $context -StatusCode 404 -ContentType 'text/plain; charset=utf-8' -Bytes $notFoundBytes
   }
-}
-finally {
-  if ($listener.IsListening) {
-    $listener.Stop()
-  }
-  $listener.Close()
-}
+} finally { if($listener.IsListening){$listener.Stop()}; $listener.Close() }
