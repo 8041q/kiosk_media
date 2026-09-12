@@ -128,6 +128,137 @@ function Handle-ScanRequest {
   }
 }
 
+function Handle-FixVideosRequest {
+  param(
+    [Parameter(Mandatory = $true)]
+    $Context,
+    [string]$QualityMode = 'crf23',
+    [string[]]$Files = @()
+  )
+
+  if (-not (Test-Path -LiteralPath $manifestScriptPath -PathType Leaf)) {
+    Send-JsonResponse -Context $Context -StatusCode 500 -Payload @{
+      ok = $false
+      error = 'Manifest generation script not found.'
+    }
+    return
+  }
+
+  $validModes = @('crf23', 'lossless')
+  if ($validModes -notcontains $QualityMode) {
+    Send-JsonResponse -Context $Context -StatusCode 400 -Payload @{
+      ok = $false
+      error = 'Invalid quality mode. Must be "crf23" or "lossless".'
+    }
+    return
+  }
+
+  $args = @("-QualityMode", $QualityMode, "-FixVideos")
+  if ($Files.Count -gt 0) {
+    $args += "-SpecificFiles"
+    $args += $Files
+  }
+
+  try {
+    $result = & $manifestScriptPath @args 2>&1
+    $reportPath = Join-Path (Split-Path -Parent $manifestScriptPath) '..\media\video-fix-report.json'
+    
+    $report = @{}
+    if (Test-Path -LiteralPath $reportPath -PathType Leaf) {
+      $report = Get-Content -LiteralPath $reportPath -Raw -Encoding UTF8 | ConvertFrom-Json
+    }
+
+    Send-JsonResponse -Context $Context -StatusCode 200 -Payload @{
+      ok = $true
+      qualityMode = $QualityMode
+      summary = $report
+      output = $result -join "`n"
+    }
+  } catch {
+    Send-JsonResponse -Context $Context -StatusCode 500 -Payload @{
+      ok = $false
+      error = $_.Exception.Message
+    }
+  }
+}
+
+function Handle-ProbeVideoRequest {
+  param(
+    [Parameter(Mandatory = $true)]
+    $Context
+  )
+
+  if (-not (Test-Path -LiteralPath $manifestScriptPath -PathType Leaf)) {
+    Send-JsonResponse -Context $Context -StatusCode 500 -Payload @{
+      ok = $false
+      error = 'Manifest generation script not found.'
+    }
+    return
+  }
+
+  try {
+    $reader = New-Object System.IO.StreamReader($Context.Request.InputStream, [System.Text.Encoding]::UTF8)
+    $body   = $reader.ReadToEnd()
+    $reader.Close()
+    $data = $body | ConvertFrom-Json
+
+    if (-not $data.src) {
+      Send-JsonResponse -Context $Context -StatusCode 400 -Payload @{
+        ok = $false
+        error = 'Missing src parameter.'
+      }
+      return
+    }
+
+    $fullPath = Join-Path $resolvedRoot ($data.src -replace '/', '\\')
+    if (-not (Test-Path -LiteralPath $fullPath -PathType Leaf)) {
+      Send-JsonResponse -Context $Context -StatusCode 404 -Payload @{
+        ok = $false
+        error = 'Video file not found.'
+      }
+      return
+    }
+
+    $ffmpegWrapper = Join-Path (Split-Path -Parent $manifestScriptPath) 'ffmpeg-wrapper.ps1'
+    if (-not (Test-Path -LiteralPath $ffmpegWrapper -PathType Leaf)) {
+      Send-JsonResponse -Context $Context -StatusCode 500 -Payload @{
+        ok = $false
+        error = 'FFmpeg wrapper not found.'
+      }
+      return
+    }
+
+    $codec = & $ffmpegWrapper -probe -select_streams v:0 -show_entries stream=codec_name,codec_tag_string -of csv=p=0 "$fullPath" 2>$null
+    $width = & $ffmpegWrapper -probe -select_streams v:0 -show_entries stream=width -of csv=p=0 "$fullPath" 2>$null
+    $height = & $ffmpegWrapper -probe -select_streams v:0 -show_entries stream=height -of csv=p=0 "$fullPath" 2>$null
+    $duration = & $ffmpegWrapper -probe -show_entries format=duration -of csv=p=0 "$fullPath" 2>$null
+    $startTime = & $ffmpegWrapper -probe -show_entries format=start_time -of csv=p=0 "$fullPath" 2>$null
+    $size = (Get-Item -LiteralPath $fullPath).Length
+    $ext = [System.IO.Path]::GetExtension($fullPath).ToLowerInvariant()
+
+    $isH264 = $codec -match 'h264|avc1'
+    $hasFastStart = $startTime -and [double]$startTime -le 0.1
+    $needsFix = (-not $isH264) -or (-not $hasFastStart) -or ($ext -notin @('.mp4'))
+
+    Send-JsonResponse -Context $Context -StatusCode 200 -Payload @{
+      ok = $true
+      codec = $codec.Trim()
+      width = if ($width) { [int]$width.Trim() } else { 0 }
+      height = if ($height) { [int]$height.Trim() } else { 0 }
+      duration = if ($duration) { [double]$duration.Trim() } else { 0 }
+      startTime = if ($startTime) { [double]$startTime.Trim() } else { 0 }
+      size = $size
+      needsFix = $needsFix
+      extension = $ext
+    }
+  } catch {
+    Send-JsonResponse -Context $Context -StatusCode 500 -Payload @{
+      ok = $false
+      error = $_.Exception.Message
+    }
+  }
+}
+
 function Get-PidFromFile {
   param(
     [Parameter(Mandatory = $true)]
@@ -359,6 +490,35 @@ try {
     if ($requestPath -eq 'api/scan') {
       if ($context.Request.HttpMethod -eq 'POST') {
         Handle-ScanRequest -Context $context
+      } else {
+        Send-JsonResponse -Context $context -StatusCode 405 -Payload @{
+          ok = $false
+          error = 'Method Not Allowed'
+        }
+      }
+      continue
+    }
+
+    if ($requestPath -eq 'api/fix-videos') {
+      if ($context.Request.HttpMethod -eq 'POST') {
+        $reader = New-Object System.IO.StreamReader($context.Request.InputStream, [System.Text.Encoding]::UTF8)
+        $body   = $reader.ReadToEnd()
+        $reader.Close()
+        $data = $body | ConvertFrom-Json
+        $qualityMode = if ($data.qualityMode) { $data.qualityMode } else { 'crf23' }
+        Handle-FixVideosRequest -Context $context -QualityMode $qualityMode
+      } else {
+        Send-JsonResponse -Context $context -StatusCode 405 -Payload @{
+          ok = $false
+          error = 'Method Not Allowed'
+        }
+      }
+      continue
+    }
+
+    if ($requestPath -eq 'api/probe-video') {
+      if ($context.Request.HttpMethod -eq 'POST') {
+        Handle-ProbeVideoRequest -Context $context
       } else {
         Send-JsonResponse -Context $context -StatusCode 405 -Payload @{
           ok = $false

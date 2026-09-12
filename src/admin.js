@@ -50,6 +50,7 @@ export function openAdminPanel() {
   draft.password = cfg.password;
   draft.language = cfg.language;
   draft.viewMode = cfg.viewMode;
+  draft.videoQualityMode = cfg.videoQualityMode || 'crf23';
 
   setAdminVidLang(cfg.language);
   buildVidLangTabs();
@@ -63,6 +64,7 @@ export function openAdminPanel() {
   $('theme-chk').checked = draft.lightMode;
   $('theme-lbl').textContent = draft.lightMode ? t('light') : t('dark');
   $('view-mode').value = draft.viewMode;
+  $('quality-mode').value = draft.videoQualityMode;
   $('pw1').value = '';
   $('pw2').value = '';
   $('pw-err').textContent = '';
@@ -76,6 +78,9 @@ export function adminNavTo(secId) {
   document.querySelectorAll('.admin-section').forEach(s => {
     s.classList.toggle('active', s.id === 'sec-' + secId);
   });
+  if (secId === 'video-processing') {
+    buildVideoStatusGrid();
+  }
 }
 
 export function buildVideoAdminGrid() {
@@ -206,6 +211,301 @@ function refreshLogoPreview() {
   }
 }
 
+// ── Video Processing section ──
+let vpQualityMode = 'crf23';
+let vpAbortController = null;
+
+async function buildVideoStatusGrid() {
+  const grid = $('video-status-grid');
+  grid.innerHTML = '';
+  grid.className = 'vp-status-grid';
+
+  const logEl = $('log-output');
+  const logContainer = $('processing-log');
+  logEl.textContent = '';
+  logContainer.classList.add('hidden');
+
+  try {
+    const res = await fetch('/api/scan', { method: 'POST', cache: 'no-store', headers: { 'Accept': 'application/json' } });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error || 'Scan failed');
+  } catch (err) {
+    grid.innerHTML = `<div class="vac-empty">${escHtml(t('noVideosFound'))}</div>`;
+    return;
+  }
+
+  const allVideos = [];
+  for (const langCode of Object.keys(allLangSources)) {
+    for (const src of allLangSources[langCode]) {
+      allVideos.push({ ...src, lang: langCode });
+    }
+  }
+
+  if (allVideos.length === 0) {
+    grid.innerHTML = `<div class="vac-empty">${escHtml(t('noVideosFound'))}</div>`;
+    return;
+  }
+
+  for (const vid of allVideos) {
+    const card = document.createElement('div');
+    card.className = 'vp-status-card pending';
+    card.dataset.src = vid.src;
+    card.dataset.lang = vid.lang;
+
+    const statusBadge = (status) => {
+      const labels = {
+        ok: t('videoAlreadyOk') || 'OK',
+        needs_fix: t('videoNeedsFix') || 'Needs Fix',
+        fixed: t('videoFixed') || 'Fixed',
+        converted: t('formatConverted') || 'Converted',
+        error: t('videoError') || 'Error',
+        pending: t('videoPending') || 'Pending',
+        processing: t('videoProcessing') || 'Processing...'
+      };
+      return `<span class="vp-status-badge ${status}">${escHtml(labels[status] || status)}</span>`;
+    };
+
+    card.innerHTML = `
+      <div class="vp-status-header">
+        <span class="vp-status-title">${escHtml(vid.name)}</span>
+        ${statusBadge('pending')}
+      </div>
+      <div class="vp-status-body">
+        <div class="vp-status-row"><span class="vp-status-label">${escHtml(t('videoLang') || 'Language')}:</span><span class="vp-status-value">${escHtml(vid.lang.toUpperCase())}</span></div>
+        <div class="vp-status-row"><span class="vp-status-label">${escHtml(t('videoCodec') || 'Codec')}:</span><span class="vp-status-value vp-codec">—</span></div>
+        <div class="vp-status-row"><span class="vp-status-label">${escHtml(t('videoResolution') || 'Resolution')}:</span><span class="vp-status-value vp-res">—</span></div>
+        <div class="vp-status-row"><span class="vp-status-label">${escHtml(t('videoDuration') || 'Duration')}:</span><span class="vp-status-value vp-dur">—</span></div>
+        <div class="vp-status-row"><span class="vp-status-label">${escHtml(t('videoSize') || 'Size')}:</span><span class="vp-status-value vp-size">—</span></div>
+      </div>
+      <div class="vp-status-actions">
+        <button class="vp-fix-btn" data-action="fix" disabled>${escHtml(t('fixVideo') || 'Fix')}</button>
+      </div>
+    `;
+
+    grid.appendChild(card);
+
+    // Probe video info
+    try {
+      const probeRes = await fetch('/api/probe-video', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ src: vid.src })
+      });
+      const probeData = await probeRes.json();
+      if (probeData.ok) {
+        card.querySelector('.vp-codec').textContent = probeData.codec || '—';
+        card.querySelector('.vp-res').textContent = `${probeData.width || '?'}x${probeData.height || '?'}`;
+        card.querySelector('.vp-dur').textContent = formatDuration(probeData.duration || 0);
+        card.querySelector('.vp-size').textContent = formatBytes(probeData.size || 0);
+
+        const needsFix = probeData.needsFix === true;
+        card.classList.remove('pending');
+        card.classList.add(needsFix ? 'needs_fix' : 'ok');
+        card.querySelector('.vp-status-badge').className = `vp-status-badge ${needsFix ? 'needs_fix' : 'ok'}`;
+        card.querySelector('.vp-status-badge').textContent = needsFix ? (t('videoNeedsFix') || 'Needs Fix') : (t('videoAlreadyOk') || 'OK');
+
+        const fixBtn = card.querySelector('.vp-fix-btn');
+        fixBtn.disabled = !needsFix;
+        if (needsFix) {
+          fixBtn.addEventListener('click', () => fixSingleVideo(vid.src, vid.lang, card, fixBtn));
+        }
+        card.dataset.needsFix = needsFix;
+      }
+    } catch (e) {
+      card.classList.remove('pending');
+      card.classList.add('error');
+      card.querySelector('.vp-status-badge').className = 'vp-status-badge error';
+      card.querySelector('.vp-status-badge').textContent = t('videoError') || 'Error';
+    }
+  }
+}
+
+async function fixSingleVideo(src, lang, card, btn) {
+  const logEl = $('log-output');
+  const logContainer = $('processing-log');
+  logContainer.classList.remove('hidden');
+
+  const log = (msg) => {
+    const time = new Date().toLocaleTimeString();
+    logEl.textContent += `[${time}] ${msg}\n`;
+    logEl.scrollTop = logEl.scrollHeight;
+  };
+
+  const fileName = src.split('/').pop();
+
+  card.classList.remove('ok', 'needs_fix', 'fixed', 'converted', 'error');
+  card.classList.add('processing');
+  card.querySelector('.vp-status-badge').className = 'vp-status-badge processing';
+  card.querySelector('.vp-status-badge').textContent = t('videoProcessing') || 'Processing...';
+  btn.disabled = true;
+  btn.classList.add('processing');
+  btn.textContent = t('fixing') || 'Fixing...';
+
+  log(`Starting fix for ${fileName} (${lang}) with quality: ${vpQualityMode}`);
+
+  vpAbortController = new AbortController();
+
+  try {
+    const res = await fetch('/api/fix-videos', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ qualityMode: vpQualityMode, files: [fileName] }),
+      signal: vpAbortController.signal
+    });
+
+    const data = await res.json();
+    log(`Server response: ${data.ok ? 'OK' : 'FAILED'} - ${data.error || ''}`);
+
+    if (data.ok && data.summary && data.summary.Results) {
+      const result = data.summary.Results.find(r => r.File && r.File.includes(fileName));
+      if (result) {
+        card.classList.remove('processing');
+        card.classList.add(result.Status);
+        card.querySelector('.vp-status-badge').className = `vp-status-badge ${result.Status}`;
+        const labels = {
+          fixed: t('videoFixed') || 'Fixed',
+          converted: t('formatConverted') || 'Converted',
+          error: t('videoError') || 'Error'
+        };
+        card.querySelector('.vp-status-badge').textContent = labels[result.Status] || result.Status;
+        btn.disabled = true;
+        btn.textContent = labels[result.Status] || 'Done';
+        btn.classList.remove('processing');
+
+        if (result.Status === 'error') {
+          log(`ERROR: ${result.Error || 'Unknown error'}`);
+        } else {
+          log(`SUCCESS: ${result.Status.toUpperCase()}`);
+        }
+
+        // Reload video info
+        setTimeout(() => buildVideoStatusGrid(), 500);
+      }
+    } else {
+      throw new Error(data.error || 'Fix failed');
+    }
+  } catch (err) {
+    if (err.name === 'AbortError') {
+      log('Aborted by user');
+    } else {
+      log(`ERROR: ${err.message}`);
+      card.classList.remove('processing');
+      card.classList.add('error');
+      card.querySelector('.vp-status-badge').className = 'vp-status-badge error';
+      card.querySelector('.vp-status-badge').textContent = t('videoError') || 'Error';
+    }
+    btn.disabled = false;
+    btn.classList.remove('processing');
+    btn.textContent = t('retry') || 'Retry';
+    btn.onclick = () => fixSingleVideo(src, lang, card, btn);
+  }
+}
+
+async function fixAllVideos() {
+  const btn = $('fix-all-btn');
+  const scanBtn = $('scan-btn-vp');
+  const qualitySelect = $('quality-mode');
+  const logEl = $('log-output');
+  const logContainer = $('processing-log');
+
+  btn.disabled = true;
+  scanBtn.disabled = true;
+  qualitySelect.disabled = true;
+  logEl.textContent = '';
+  logContainer.classList.remove('hidden');
+
+  const log = (msg) => {
+    const time = new Date().toLocaleTimeString();
+    logEl.textContent += `[${time}] ${msg}\n`;
+    logEl.scrollTop = logEl.scrollHeight;
+  };
+
+  vpQualityMode = qualitySelect.value;
+  log(`Starting batch fix with quality: ${vpQualityMode}`);
+
+  vpAbortController = new AbortController();
+
+  try {
+    const res = await fetch('/api/fix-videos', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ qualityMode: vpQualityMode }),
+      signal: vpAbortController.signal
+    });
+
+    const data = await res.json();
+    log(`Batch fix completed. OK: ${data.ok}`);
+
+    if (data.ok && data.summary && data.summary.Results) {
+      const results = data.summary.Results;
+      const fixed = results.filter(r => r.Status === 'fixed').length;
+      const converted = results.filter(r => r.Status === 'converted').length;
+      const errors = results.filter(r => r.Status === 'error').length;
+      const ok = results.filter(r => r.Status === 'ok').length;
+      const needsFix = results.filter(r => r.Status === 'needs_fix').length;
+
+      log(`Summary: OK=${ok}, Fixed=${fixed}, Converted=${converted}, NeedsFix=${needsFix}, Errors=${errors}`);
+
+      for (const r of results) {
+        if (r.Status === 'error') {
+          log(`  ERROR: ${r.File} - ${r.Error || 'Unknown'}`);
+        } else if (r.Status !== 'ok') {
+          log(`  ${r.Status.toUpperCase()}: ${r.File}`);
+        }
+      }
+
+      showToast(tf('fixComplete', { fixed: fixed + converted, errors }));
+    } else {
+      log(`ERROR: ${data.error || 'Batch fix failed'}`);
+      showToast(t('fixFailed') || 'Fix failed');
+    }
+  } catch (err) {
+    if (err.name !== 'AbortError') {
+      log(`ERROR: ${err.message}`);
+      showToast(t('fixFailed') || 'Fix failed');
+    }
+  } finally {
+    btn.disabled = false;
+    scanBtn.disabled = false;
+    qualitySelect.disabled = false;
+    btn.textContent = t('fixAllVideos');
+    await buildVideoStatusGrid();
+  }
+}
+
+async function scanVideosVP() {
+  const btn = $('scan-btn-vp');
+  btn.disabled = true;
+  btn.textContent = t('scanning');
+  await buildVideoStatusGrid();
+  btn.disabled = false;
+  btn.textContent = t('scan');
+}
+
+$('quality-mode').addEventListener('change', e => {
+  vpQualityMode = e.target.value;
+  draft.videoQualityMode = e.target.value;
+});
+
+$('fix-all-btn').addEventListener('click', fixAllVideos);
+$('scan-btn-vp').addEventListener('click', scanVideosVP);
+
+function formatDuration(seconds) {
+  if (!seconds || seconds < 0) return '—';
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = Math.floor(seconds % 60);
+  return h > 0 ? `${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}` : `${m}:${String(s).padStart(2,'0')}`;
+}
+
+function formatBytes(bytes) {
+  if (!bytes) return '—';
+  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+  let i = 0;
+  while (bytes >= 1024 && i < units.length - 1) { bytes /= 1024; i++; }
+  return `${bytes.toFixed(i === 0 ? 0 : 1)} ${units[i]}`;
+}
+
 $('logo-file').addEventListener('change', e => {
   const file = e.target.files[0];
   if (!file) return;
@@ -280,6 +580,7 @@ $('panel-save').addEventListener('click', () => {
   cfg.password = draft.password;
   cfg.language = draft.language;
   cfg.viewMode = draft.viewMode;
+  cfg.videoQualityMode = draft.videoQualityMode;
   persistSave();
   applyLogo(cfg.logoSrc);
   applyI18n();

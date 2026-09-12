@@ -900,6 +900,67 @@ body.light #logo-preview-box {
 }
 .setting-select:focus { border-color: var(--accent); outline: none; }
 
+/* Video Processing section */
+.vp-status-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+  gap: 16px;
+}
+.vp-status-card {
+  background: var(--surface); border: 2px solid var(--border);
+  border-radius: var(--radius-lg); overflow: hidden;
+  transition: border-color 0.15s;
+}
+.vp-status-card.ok { border-color: var(--accent); }
+.vp-status-card.needs_fix { border-color: #ffa500; }
+.vp-status-card.fixed { border-color: #4caf50; }
+.vp-status-card.converted { border-color: #2196f3; }
+.vp-status-card.error { border-color: #c62828; }
+.vp-status-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 16px; background: var(--surface2); border-bottom: 1px solid var(--border);
+}
+.vp-status-title { font-weight: 700; font-size: 0.95rem; word-break: break-all; }
+.vp-status-badge {
+  font-size: 0.7rem; font-weight: 700; padding: 4px 10px;
+  border-radius: 999px; text-transform: uppercase; letter-spacing: 0.05em;
+}
+.vp-status-badge.ok { background: rgba(76,175,80,0.2); color: #4caf50; }
+.vp-status-badge.needs_fix { background: rgba(255,165,0,0.2); color: #ffa500; }
+.vp-status-badge.fixed { background: rgba(76,175,80,0.2); color: #4caf50; }
+.vp-status-badge.converted { background: rgba(33,150,243,0.2); color: #2196f3; }
+.vp-status-badge.error { background: rgba(198,40,40,0.2); color: #c62828; }
+.vp-status-badge.pending { background: rgba(158,158,158,0.2); color: #9e9e9e; }
+.vp-status-badge.processing { background: rgba(0,191,165,0.2); color: var(--accent); animation: pulse 1.5s infinite; }
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
+.vp-status-body { padding: 16px; display: grid; gap: 8px; }
+.vp-status-row { display: flex; justify-content: space-between; font-size: 0.85rem; }
+.vp-status-label { color: var(--text-sub); }
+.vp-status-value { color: var(--text); font-weight: 600; font-variant-numeric: tabular-nums; }
+.vp-status-actions { padding: 12px 16px; border-top: 1px solid var(--border); display: flex; gap: 8px; }
+.vp-fix-btn {
+  flex: 1; padding: 8px 12px; font-size: 0.85rem;
+  background: var(--accent); color: var(--accent-text);
+  border: none; border-radius: var(--radius-sm); cursor: pointer;
+}
+.vp-fix-btn:hover { opacity: 0.85; }
+.vp-fix-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.vp-fix-btn.processing { background: var(--text-dim); cursor: wait; }
+
+#processing-log {
+  margin-top: 24px; padding: 16px;
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+#processing-log h3 { margin-bottom: 12px; font-size: 1rem; }
+#log-output {
+  background: #000; color: #0f0; font-family: monospace;
+  font-size: 0.8rem; padding: 12px; border-radius: var(--radius-sm);
+  max-height: 300px; overflow-y: auto; white-space: pre-wrap;
+  word-break: break-all;
+}
+.setting-select-row { width: 100%; max-width: 380px; }
+
 @media (max-width: 760px) {
   #vid-lang-tabs {
     width: 100%;
@@ -1151,6 +1212,9 @@ body.light #logo-preview-box {
       <button class="snav-btn" data-sec="about">
         <span data-i18n="about">About</span>
       </button>
+      <button class="snav-btn" data-sec="video-processing">
+        <span data-i18n="videoProcessing">Video Processing</span>
+      </button>
     </nav>
     <div class="sidebar-footer">
       <button class="btn btn-full" id="panel-save" data-i18n="save">Save &amp; Return</button>
@@ -1301,6 +1365,36 @@ body.light #logo-preview-box {
             <button class="btn btn-ghost" id="about-issues" type="button" data-i18n="aboutIssues">Report an issue</button>
           </div>
         </div>
+      </div>
+    </div>
+
+    <!-- ── Video Processing section ── -->
+    <div class="admin-section" id="sec-video-processing">
+      <h2 class="sec-title" data-i18n="videoProcessing">Video Processing</h2>
+
+      <div class="setting-group">
+        <span class="setting-label" data-i18n="qualityMode">Quality Mode</span>
+        <div class="setting-select-row">
+          <select id="quality-mode" class="setting-select" aria-label="Video processing quality mode">
+            <option value="crf23" data-i18n="qualityCrf23">CRF 23 (almost lossless, smaller files)</option>
+            <option value="lossless" data-i18n="qualityLossless">Lossless (larger files)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="setting-group">
+        <span class="setting-label" data-i18n="videoStatus">Video Status</span>
+        <div id="video-status-grid"></div>
+      </div>
+
+      <div class="setting-group">
+        <button class="btn" id="fix-all-btn" data-i18n="fixAllVideos">Fix All Videos</button>
+        <button class="btn btn-surface" id="scan-btn-vp" data-i18n="scan">Scan</button>
+      </div>
+
+      <div id="processing-log" class="hidden">
+        <h3 data-i18n="processingLog">Processing Log</h3>
+        <pre id="log-output"></pre>
       </div>
     </div>
 

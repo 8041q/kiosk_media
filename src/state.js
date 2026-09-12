@@ -16,6 +16,7 @@ export const cfg = {
   videoTitles:  {},
   language:     'en',
   viewMode:     'cards-medium',
+  videoQualityMode: 'crf23',
 };
 
 /** @type {Object} */
@@ -41,6 +42,7 @@ export const draft = {
   password:     DEFAULT_PASSWORD,
   language:     'en',
   viewMode:     'cards-medium',
+  videoQualityMode: 'crf23',
 };
 
 /** @type {Object|null} */
