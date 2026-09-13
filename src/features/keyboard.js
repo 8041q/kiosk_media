@@ -50,10 +50,15 @@ function findOskInputTarget(target) {
   return shouldUseOsk(hit) ? hit : null;
 }
 
+function isCustomOnlyInput(el) {
+  return el instanceof HTMLInputElement && el.dataset.oskCustom === 'true';
+}
+
 function shouldUseOsk(el) {
   if (!(el instanceof HTMLInputElement)) return false;
   const type = (el.type || '').toLowerCase();
-  return (type === 'text' || type === 'password') && !el.disabled && !el.readOnly;
+  const editableType = type === 'text' || type === 'password';
+  return editableType && !el.disabled && (!el.readOnly || isCustomOnlyInput(el));
 }
 
 function isPinInput(el) {
@@ -68,6 +73,14 @@ function suppressNativeKeyboard(el) {
   try { navigator.virtualKeyboard?.hide?.(); } catch (_) {}
 }
 
+// Prepare dynamically-created text fields with the same native-keyboard
+// suppression used for the static Security inputs during initKeyboard().
+export function prepareOnScreenKeyboardInput(el) {
+  if (!shouldUseOsk(el)) return;
+  suppressNativeKeyboard(el);
+  if (isCustomOnlyInput(el)) el.readOnly = true;
+}
+
 export function forceNumericValue(el) {
   if (!(el instanceof HTMLInputElement)) return;
   const onlyDigits = (el.value || '').replace(/\D+/g, '');
@@ -79,6 +92,7 @@ export function hideOnScreenKeyboard() {
   if (!overlay) return;
   overlay.classList.remove('osk-visible');
   overlay.classList.remove('osk-numeric');
+  overlay.classList.remove('osk-text');
   overlay.setAttribute('aria-hidden', 'true');
   oskMode = 'full';
   oskTarget = null;
@@ -104,6 +118,7 @@ function showOnScreenKeyboard(input) {
   oskMode = numeric ? 'numeric' : 'full';
   oskTarget = input;
   overlay.classList.toggle('osk-numeric', numeric);
+  overlay.classList.toggle('osk-text', !numeric);
   syncOskLanguage('default', oskMode);
   osk.setInput(input.value || '');
   overlay.classList.add('osk-visible');
@@ -151,7 +166,15 @@ export function initKeyboard() {
     const input = findOskInputTarget(e.target);
     if (!input) return;
     suppressNativeKeyboard(input);
-    if (document.activeElement !== input) { try { input.focus({ preventScroll: true }); } catch (_) { input.focus(); } }
+
+    // Custom-only fields remain readonly to the browser at all times.
+    // This prevents the device/OS keyboard from being summoned while still
+    // allowing SimpleKeyboard to update input.value programmatically.
+    if (isCustomOnlyInput(input)) e.preventDefault();
+
+    if (document.activeElement !== input) {
+      try { input.focus({ preventScroll: true }); } catch (_) { input.focus(); }
+    }
     showOnScreenKeyboard(input);
   }, true);
 

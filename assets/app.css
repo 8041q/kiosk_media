@@ -1030,6 +1030,28 @@ body.light #logo-preview-box {
   border-radius: var(--radius);
 }
 
+/* Text keyboard uses the same floating-panel treatment as the PIN keypad,
+   but is wider so a full alphabet stays comfortable to tap. */
+#osk-overlay.osk-text {
+  left: auto;
+  right: 16px;
+  bottom: 16px;
+  width: min(760px, calc(100vw - 32px));
+  padding: 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+#osk-overlay.osk-text #osk-container {
+  max-width: none;
+  margin: 0;
+}
+
+#osk-overlay.osk-text #osk-container .hg-button {
+  min-height: 48px;
+}
+
 #osk-overlay.osk-numeric #osk-container {
   max-width: none;
   margin: 0;
@@ -1467,6 +1489,12 @@ body.light #admin-corner {
   backdrop-filter: blur(12px);
 }
 #osk-overlay.osk-numeric {
+  right: max(16px, env(safe-area-inset-right));
+  bottom: max(16px, env(safe-area-inset-bottom));
+  border-radius: 18px;
+  box-shadow: var(--shadow-float);
+}
+#osk-overlay.osk-text {
   right: max(16px, env(safe-area-inset-right));
   bottom: max(16px, env(safe-area-inset-bottom));
   border-radius: 18px;
