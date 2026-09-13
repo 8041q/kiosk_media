@@ -84,9 +84,14 @@ export function showScreen(name) {
   window.dispatchEvent(new CustomEvent('kiosk:screenchange', { detail: { previous, name } }));
 }
 
+const imageSourceCache = new Map();
+let logoRequestId = 0;
+
 function resolveImageSource(candidates, preferred) {
   if (preferred) return Promise.resolve(preferred);
-  return new Promise(resolve => {
+  const cacheKey = candidates.join('|');
+  if (imageSourceCache.has(cacheKey)) return imageSourceCache.get(cacheKey);
+  const pending = new Promise(resolve => {
     let i = 0;
     const next = () => {
       if (i >= candidates.length) { resolve(''); return; }
@@ -98,17 +103,21 @@ function resolveImageSource(candidates, preferred) {
     };
     next();
   });
+  imageSourceCache.set(cacheKey, pending);
+  return pending;
 }
 
 const LOGO_CANDIDATES = ['assets/logo.png', 'assets/logo.jpg', 'assets/logo.svg'];
 const ABOUT_CANDIDATES = ['assets/favicon.jpg', 'assets/favicon.ico'];
 
 export async function applyLogo(src) {
+  const requestId = ++logoRequestId;
   const main = $('main-logo');
   const player = $('player-logo');
   const targets = [main, player].filter(Boolean);
   targets.forEach(img => { img.removeAttribute('src'); img.style.display = 'none'; });
   const url = await resolveImageSource(LOGO_CANDIDATES, src);
+  if (requestId !== logoRequestId) return;
   if (url) targets.forEach(img => { img.src = url; img.style.display = 'block'; });
 }
 

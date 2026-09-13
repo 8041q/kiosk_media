@@ -1,14 +1,29 @@
 import { apiFetch } from '../core/api.js';
-import { cfg, draft, catalog, ui, setCatalog, setActiveCatalogLanguage, saveSettingsSoon } from '../core/state.js';
+import { cfg, catalog, ui, setCatalog, setActiveCatalogLanguage, saveSettingsSoon } from '../core/state.js';
 import { $, escHtml, formatDuration, videoTitle, applyViewMode, showToast } from '../core/ui.js';
 import { LANGUAGES, t, tf, setLanguage, applyI18n } from '../core/i18n.js';
 
 const thumbCache = new Map();
 const durationCache = new Map();
 const metaQueue = [];
-const activeProbeVideos = new Map();
+const metaJobs = new Map();
+const activeProbeControls = new Map();
 let activeProbes = 0;
+let cachedCols = 1;
+let cachedGridWidth = -1;
 const META_CONCURRENCY = 3;
+const visibleMetaTasks = new WeakMap();
+const metaVisibilityObserver = typeof IntersectionObserver !== 'undefined'
+  ? new IntersectionObserver(entries => {
+      for (const entry of entries) {
+        if (!entry.isIntersecting) continue;
+        const task = visibleMetaTasks.get(entry.target);
+        metaVisibilityObserver.unobserve(entry.target);
+        entry.target.removeAttribute('data-meta-pending');
+        if (task) { visibleMetaTasks.delete(entry.target); task(); }
+      }
+    }, { rootMargin: '520px 0px', threshold: 0.01 })
+  : null;
 
 function normalizeServerCatalog(data) {
   const source = data?.languages || {};
@@ -26,10 +41,12 @@ function normalizeServerCatalog(data) {
 }
 
 function ensureSelectionDefaults() {
+  const selected = new Set(cfg.selectedIds);
+  const disabled = new Set(cfg.disabledIds);
   for (const video of catalog.all) {
-    const id = video.id;
-    if (!cfg.selectedIds.includes(id) && !cfg.disabledIds.includes(id)) cfg.selectedIds.push(id);
+    if (!selected.has(video.id) && !disabled.has(video.id)) selected.add(video.id);
   }
+  cfg.selectedIds = [...selected];
 }
 
 export async function refreshCatalog({ toast = false } = {}) {
@@ -90,57 +107,127 @@ export function closeLangMenu() {
 }
 
 function abortProbe(src) {
-  const video = activeProbeVideos.get(src);
-  if (!video) return;
-  activeProbeVideos.delete(src);
-  video.removeAttribute('src');
-  video.load();
+  const job = metaJobs.get(src);
+  if (!job) return;
+  const control = activeProbeControls.get(src);
+  if (control) {
+    control.cancel();
+    return;
+  }
+  const idx = metaQueue.indexOf(job);
+  if (idx >= 0) metaQueue.splice(idx, 1);
+  metaJobs.delete(src);
 }
 
 export function queueMeta(record, onThumb, onDuration = () => {}) {
-  metaQueue.push({ record, onThumb, onDuration });
+  const src = record.src;
+  if (thumbCache.has(src) && durationCache.has(src)) {
+    onThumb(thumbCache.get(src));
+    onDuration(durationCache.get(src));
+    return;
+  }
+
+  let job = metaJobs.get(src);
+  if (!job) {
+    job = { record, listeners: [], duration: durationCache.get(src) };
+    metaJobs.set(src, job);
+    metaQueue.push(job);
+  }
+  job.listeners.push({ onThumb, onDuration });
+  if (job.duration != null) onDuration(job.duration);
   drainMeta();
 }
 
 function drainMeta() {
   while (activeProbes < META_CONCURRENCY && metaQueue.length) {
+    const job = metaQueue.shift();
+    if (metaJobs.get(job.record.src) !== job) continue;
     activeProbes += 1;
-    runMeta(metaQueue.shift()).finally(() => { activeProbes -= 1; drainMeta(); });
+    runMeta(job).finally(() => { activeProbes -= 1; drainMeta(); });
   }
 }
 
-function runMeta({ record, onThumb, onDuration }) {
+function runMeta(job) {
   return new Promise(resolve => {
-    if (thumbCache.has(record.src) && durationCache.has(record.src)) {
-      onThumb(thumbCache.get(record.src)); onDuration(durationCache.get(record.src)); resolve(); return;
+    const { record } = job;
+    const src = record.src;
+    if (thumbCache.has(src) && durationCache.has(src)) {
+      const thumb = thumbCache.get(src);
+      const duration = durationCache.get(src);
+      job.listeners.forEach(({ onThumb, onDuration }) => { onThumb(thumb); onDuration(duration); });
+      metaJobs.delete(src);
+      resolve();
+      return;
     }
+
     const video = document.createElement('video');
     video.muted = true; video.preload = 'metadata'; video.playsInline = true;
     const canvas = document.createElement('canvas'); canvas.width = 320; canvas.height = 180;
     const ctx = canvas.getContext('2d');
     let finished = false; let timer = null; let attempts = 0;
-    activeProbeVideos.set(record.src, video);
-    const cleanup = () => { clearTimeout(timer); activeProbeVideos.delete(record.src); video.removeAttribute('src'); video.load(); };
-    const finish = (thumb = null) => { if (finished) return; finished = true; thumbCache.set(record.src, thumb); onThumb(thumb); cleanup(); resolve(); };
+
+    const cleanup = () => {
+      clearTimeout(timer);
+      if (activeProbeControls.get(src)?.job === job) activeProbeControls.delete(src);
+      video.removeAttribute('src');
+      video.load();
+    };
+    const finish = (thumb = null, { cache = true, notify = true } = {}) => {
+      if (finished) return;
+      finished = true;
+      if (cache) {
+        thumbCache.set(src, thumb);
+        if (!durationCache.has(src)) durationCache.set(src, 0);
+      }
+      if (metaJobs.get(src) === job) metaJobs.delete(src);
+      if (notify) job.listeners.forEach(({ onThumb }) => onThumb(thumb));
+      job.listeners.length = 0;
+      cleanup();
+      resolve();
+    };
+
+    activeProbeControls.set(src, { job, cancel: () => finish(null, { cache: false, notify: false }) });
     video.addEventListener('loadeddata', () => {
       const duration = Number.isFinite(video.duration) ? video.duration : 0;
-      durationCache.set(record.src, duration); onDuration(duration);
+      durationCache.set(src, duration);
+      job.duration = duration;
+      job.listeners.forEach(({ onDuration }) => onDuration(duration));
       const seek = duration > 0 ? Math.min(2, Math.max(0.05, duration * 0.1), Math.max(0, duration - 0.25)) : 0;
       try { video.currentTime = seek; } catch (_) { finish(null); }
     }, { once: true });
     video.addEventListener('seeked', () => {
       try {
+        if (!ctx) { finish(null); return; }
         ctx.drawImage(video, 0, 0, 320, 180);
         finish(canvas.toDataURL('image/jpeg', 0.72));
       } catch (_) {
         attempts += 1;
-        if (attempts < 2 && Number.isFinite(video.duration) && video.duration > 1) { video.currentTime = Math.min(video.duration - 0.25, video.duration * 0.35); }
+        if (attempts < 2 && Number.isFinite(video.duration) && video.duration > 1) video.currentTime = Math.min(video.duration - 0.25, video.duration * 0.35);
         else finish(null);
       }
     });
     video.addEventListener('error', () => finish(null), { once: true });
     timer = setTimeout(() => finish(null), 10000);
-    video.src = record.src; video.load();
+    video.src = src;
+    video.load();
+  });
+}
+
+export function queueMetaVisible(element, record, onThumb, onDuration = () => {}) {
+  if (!element || !metaVisibilityObserver || (thumbCache.has(record.src) && durationCache.has(record.src))) {
+    queueMeta(record, onThumb, onDuration);
+    return;
+  }
+  visibleMetaTasks.set(element, () => queueMeta(record, onThumb, onDuration));
+  element.setAttribute('data-meta-pending', '');
+  metaVisibilityObserver.observe(element);
+}
+
+export function clearPendingMeta(container) {
+  if (!container || !metaVisibilityObserver) return;
+  container.querySelectorAll('[data-meta-pending]').forEach(el => {
+    metaVisibilityObserver.unobserve(el);
+    visibleMetaTasks.delete(el);
   });
 }
 
@@ -149,6 +236,7 @@ export function bindThumbImage(img, placeholder, url) {
   const reveal = () => { img.classList.add('loaded'); placeholder?.classList.add('hidden'); };
   show();
   if (!url) { img.removeAttribute('src'); return; }
+  img.decoding = 'async'; img.loading = 'lazy';
   img.onload = reveal; img.onerror = show; img.src = url;
   if (img.complete && img.naturalWidth) reveal();
 }
@@ -157,14 +245,20 @@ export function renderMainScreen() {
   const grid = $('tile-grid');
   if (!grid) return;
   applyViewMode(cfg.viewMode);
+  clearPendingMeta(grid);
   grid.innerHTML = '';
   ui.gridTiles = [];
   ui.rovingIdx = 0;
-  const visible = catalog.videos.filter(v => cfg.selectedIds.includes(v.id));
+  cachedGridWidth = -1;
+
+  const selected = new Set(cfg.selectedIds);
+  const visible = catalog.videos.filter(v => selected.has(v.id));
   if (!visible.length) {
     grid.innerHTML = `<div class="grid-message"><svg viewBox="0 0 24 24"><path d="M18 4l2 4h-3l-2-4h-2l2 4h-3l-2-4H8l2 4H7L5 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V4h-4z"/></svg><h2>${escHtml(t('noVideos'))}</h2><p>${escHtml(t('openAdminToConfigure'))}</p></div>`;
     return;
   }
+
+  const fragment = document.createDocumentFragment();
   visible.forEach((video, idx) => {
     const tile = document.createElement('div');
     tile.className = 'tile fade-up'; tile.style.animationDelay = `${Math.min(idx * 28, 280)}ms`;
@@ -176,38 +270,56 @@ export function renderMainScreen() {
     tile.addEventListener('click', activate);
     tile.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); activate(); } });
     tile.addEventListener('focus', () => rovingSync(idx));
-    grid.appendChild(tile); ui.gridTiles.push(tile);
-    queueMeta(video, url => bindThumbImage(tile.querySelector('img'), tile.querySelector('.tile-loader'), url), secs => {
-      const text = formatDuration(secs); if (text !== '—') { tile.querySelector('.tile-badge').textContent = text; tile.querySelector('.tile-dur').textContent = text; }
+    fragment.appendChild(tile);
+    ui.gridTiles.push(tile);
+
+    const img = tile.querySelector('img');
+    const loader = tile.querySelector('.tile-loader');
+    const badge = tile.querySelector('.tile-badge');
+    const durationEl = tile.querySelector('.tile-dur');
+    queueMetaVisible(tile, video, url => bindThumbImage(img, loader, url), secs => {
+      const text = formatDuration(secs);
+      if (text !== '—') { badge.textContent = text; durationEl.textContent = text; }
     });
   });
+  grid.appendChild(fragment);
   initRoving(grid);
 }
 
 function rovingSync(idx) {
-  ui.gridTiles.forEach((tile, i) => { tile.tabIndex = i === idx ? 0 : -1; tile.classList.toggle('kfocus', i === idx); });
+  const previous = ui.gridTiles[ui.rovingIdx];
+  const next = ui.gridTiles[idx];
+  if (previous && previous !== next) previous.tabIndex = -1;
+  if (next) next.tabIndex = 0;
   ui.rovingIdx = idx;
 }
 
-function measureCols() {
-  if (ui.gridTiles.length < 2) return 1;
-  const top = ui.gridTiles[0].getBoundingClientRect().top;
+function measureCols(grid) {
+  const width = grid.clientWidth;
+  if (width === cachedGridWidth) return cachedCols;
+  cachedGridWidth = width;
+  if (ui.gridTiles.length < 2) { cachedCols = 1; return cachedCols; }
+  const top = ui.gridTiles[0].offsetTop;
   let cols = 1;
-  for (let i = 1; i < ui.gridTiles.length; i++) { if (Math.abs(ui.gridTiles[i].getBoundingClientRect().top - top) < 5) cols += 1; else break; }
-  return cols;
+  for (let i = 1; i < ui.gridTiles.length; i++) {
+    if (Math.abs(ui.gridTiles[i].offsetTop - top) < 5) cols += 1;
+    else break;
+  }
+  cachedCols = Math.max(1, cols);
+  return cachedCols;
 }
 
 function initRoving(grid) {
   grid.onkeydown = e => {
     const tiles = ui.gridTiles; if (!tiles.length) return;
-    const cols = measureCols(); let next = ui.rovingIdx;
+    const cols = measureCols(grid); let next = ui.rovingIdx;
     if (e.key === 'ArrowRight') next = Math.min(next + 1, tiles.length - 1);
     else if (e.key === 'ArrowLeft') next = Math.max(next - 1, 0);
     else if (e.key === 'ArrowDown') next = Math.min(next + cols, tiles.length - 1);
     else if (e.key === 'ArrowUp') next = Math.max(next - cols, 0);
     else if (['Enter', ' ', 'NumpadEnter'].includes(e.key)) { e.preventDefault(); tiles[ui.rovingIdx]?.click(); return; }
     else return;
-    e.preventDefault(); rovingSync(next); tiles[next]?.focus();
+    e.preventDefault(); rovingSync(next); tiles[next]?.focus({ preventScroll: true });
   };
 }
 
@@ -216,5 +328,5 @@ export function focusLibraryTile(index = ui.lastTileIdx) {
   if (!tiles.length) return;
   const safe = Math.max(0, Math.min(index, tiles.length - 1));
   rovingSync(safe);
-  $('tile-grid')?.focus({ preventScroll: true });
+  tiles[safe]?.focus({ preventScroll: true });
 }

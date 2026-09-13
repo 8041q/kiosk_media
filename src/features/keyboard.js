@@ -61,6 +61,13 @@ function isPinInput(el) {
   return el.id === 'auth-input' || el.id === 'pw1' || el.id === 'pw2';
 }
 
+function suppressNativeKeyboard(el) {
+  if (!(el instanceof HTMLInputElement)) return;
+  el.setAttribute('inputmode', 'none');
+  try { el.virtualKeyboardPolicy = 'manual'; } catch (_) {}
+  try { navigator.virtualKeyboard?.hide?.(); } catch (_) {}
+}
+
 export function forceNumericValue(el) {
   if (!(el instanceof HTMLInputElement)) return;
   const onlyDigits = (el.value || '').replace(/\D+/g, '');
@@ -88,8 +95,10 @@ function submitFromOsk(input) {
 
 function showOnScreenKeyboard(input) {
   if (!osk || !shouldUseOsk(input)) return;
+  suppressNativeKeyboard(input);
   const overlay = $('osk-overlay');
   if (!overlay) return;
+  if (oskTarget === input && overlay.classList.contains('osk-visible')) return;
   const numeric = isPinInput(input);
   if (numeric) forceNumericValue(input);
   oskMode = numeric ? 'numeric' : 'full';
@@ -99,6 +108,9 @@ function showOnScreenKeyboard(input) {
   osk.setInput(input.value || '');
   overlay.classList.add('osk-visible');
   overlay.setAttribute('aria-hidden', 'false');
+  requestAnimationFrame(() => {
+    try { input.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'smooth' }); } catch (_) {}
+  });
 }
 
 export function initKeyboard() {
@@ -106,6 +118,8 @@ export function initKeyboard() {
   const container = $('osk-container');
   if (!overlay || !container) return;
   if (!window.SimpleKeyboard || !window.SimpleKeyboard.default) return;
+
+  document.querySelectorAll(OSK_SELECTOR).forEach(suppressNativeKeyboard);
 
   const oskLang = getOskLanguage();
   osk = new window.SimpleKeyboard.default({
@@ -136,13 +150,14 @@ export function initKeyboard() {
   document.addEventListener('pointerdown', e => {
     const input = findOskInputTarget(e.target);
     if (!input) return;
+    suppressNativeKeyboard(input);
     if (document.activeElement !== input) { try { input.focus({ preventScroll: true }); } catch (_) { input.focus(); } }
     showOnScreenKeyboard(input);
   }, true);
 
   document.addEventListener('focusin', e => {
     const input = findOskInputTarget(e.target);
-    if (input) showOnScreenKeyboard(input);
+    if (input) { suppressNativeKeyboard(input); showOnScreenKeyboard(input); }
   });
 
   document.addEventListener('input', e => {

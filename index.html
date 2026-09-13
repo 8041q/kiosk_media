@@ -2,8 +2,9 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
   <title>Exhibition Kiosk</title>
+  <meta name="theme-color" content="#0e0e0e" />
   <link rel="stylesheet" href="assets/app.css" />
   <link rel="stylesheet" href="assets/simple-keyboard.css" />
   <link rel="icon" href="assets/favicon.ico" type="image/x-icon">
@@ -65,7 +66,7 @@
           <path id="vol-icon-path" d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/>
         </svg>
       </button>
-      <input type="range" id="player-vol" min="0" max="1" step="0.01" value="1" style="--vol-pct:100%" />
+      <input type="range" id="player-vol" min="0" max="1" step="0.01" value="1" style="--vol-pct:100%" aria-label="Volume" />
       <span id="player-vol-pct">100%</span>
     </div>
 
@@ -126,11 +127,11 @@
       <button class="snav-btn" data-sec="security">
         <span data-i18n="security">Security</span>
       </button>
-      <button class="snav-btn" data-sec="about">
-        <span data-i18n="about">About</span>
-      </button>
       <button class="snav-btn" data-sec="video-processing">
         <span data-i18n="videoProcessing">Video Processing</span>
+      </button>
+      <button class="snav-btn" data-sec="about">
+        <span data-i18n="about">About</span>
       </button>
     </nav>
     <div class="sidebar-footer">
@@ -153,7 +154,7 @@
 
       <div class="setting-group">
         <span class="setting-label" data-i18n="displayedMedia">Displayed Media</span>
-        <div class="video-admin-toolbar"><div id="vid-lang-tabs"></div><div class="video-admin-bulk"><button class="btn btn-ghost" id="chk-all" type="button" data-i18n="selectAll">Select all</button><button class="btn btn-ghost" id="chk-none" type="button" data-i18n="deselectAll">Deselect all</button></div></div>
+        <div class="video-admin-toolbar"><div id="vid-lang-tabs"></div></div>
         <div id="video-admin-grid">
           <div class="vac-empty" id="vac-empty" data-i18n="noVideosLoaded">No videos loaded. Use the Scan button (top right) to scan the media folder.</div>
         </div>
@@ -164,58 +165,73 @@
     <div class="admin-section" id="sec-appearance">
       <h2 class="sec-title" data-i18n="appearance">Appearance</h2>
 
-      <!-- Logo -->
-      <div class="setting-group">
-        <span class="setting-label" data-i18n="logo">Logo</span>
-        <div class="logo-section">
-          <div id="logo-preview-box">
-            <img id="logo-prev-img" alt="Logo preview" />
-            <span id="logo-no-logo" data-i18n="noLogoSet">No logo set</span>
+      <div class="appearance-layout">
+        <div class="setting-group appearance-logo-card">
+          <span class="setting-label" data-i18n="logo">Logo</span>
+          <div class="logo-section">
+            <div id="logo-preview-box" role="button" tabindex="0" aria-label="Upload logo">
+              <img id="logo-prev-img" alt="Logo preview" />
+              <span id="logo-no-logo" data-i18n="noLogoSet">No logo set</span>
+            </div>
+            <p class="logo-hint" data-i18n="logoHint">Auto-loaded from assets/logo.png (also tries .jpg and .svg). Upload below to override.</p>
+            <div class="logo-btns">
+              <button class="btn btn-surface" id="logo-upload" type="button"><span data-i18n="uploadLogo">Upload logo</span></button>
+              <input class="logo-file-input" type="file" id="logo-file" accept="image/*" tabindex="-1" aria-hidden="true" />
+              <button class="btn btn-ghost" id="logo-remove" type="button" data-i18n="remove" style="display:none;">Remove</button>
+            </div>
           </div>
-          <p class="logo-hint" data-i18n="logoHint">Auto-loaded from assets/logo.png (also tries .jpg and .svg). Upload below to override.</p>
-          <div class="logo-btns">
-            <label class="btn btn-surface file-btn" data-i18n="uploadLogo">
-              Upload logo
-              <input type="file" id="logo-file" accept="image/*" />
-            </label>
-            <button class="btn btn-ghost" id="logo-remove" data-i18n="remove" style="display:none;">Remove</button>
+        </div>
+
+        <div class="appearance-controls">
+          <div class="setting-group appearance-control-card">
+            <span class="setting-label" data-i18n="accentColor">Accent Colour</span>
+            <div class="color-row">
+              <input type="color" id="color-pick" />
+              <div class="appearance-control-copy">
+                <span class="color-hex" id="color-hex">#00BFA5</span>
+                <span class="color-note" data-i18n="accentNote">Applies to buttons and active controls. Backgrounds stay neutral.</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="setting-group appearance-control-card">
+            <span class="setting-label" data-i18n="theme">Theme</span>
+            <div class="toggle-row">
+              <label class="toggle">
+                <input type="checkbox" id="theme-chk" />
+                <div class="toggle-track"></div>
+                <div class="toggle-knob"></div>
+              </label>
+              <span class="toggle-lbl" id="theme-lbl">Dark</span>
+            </div>
+          </div>
+
+          <div class="setting-group appearance-control-card appearance-view-card">
+            <span class="setting-label" data-i18n="viewMode">View Mode</span>
+            <div id="view-mode-picker" class="view-mode-picker" role="radiogroup" aria-label="View mode">
+              <button class="view-mode-option" type="button" role="radio" aria-checked="false" data-view-mode="cards-small">
+                <span class="view-mode-preview preview-cards-small" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+                <span data-i18n="viewCardsSmall">Cards (smaller)</span>
+              </button>
+              <button class="view-mode-option" type="button" role="radio" aria-checked="false" data-view-mode="cards-medium">
+                <span class="view-mode-preview preview-cards-medium" aria-hidden="true"><i></i><i></i><i></i></span>
+                <span data-i18n="viewCardsMedium">Cards (medium)</span>
+              </button>
+              <button class="view-mode-option" type="button" role="radio" aria-checked="false" data-view-mode="cards-large">
+                <span class="view-mode-preview preview-cards-large" aria-hidden="true"><i></i><i></i></span>
+                <span data-i18n="viewCardsLarge">Cards (larger)</span>
+              </button>
+              <button class="view-mode-option" type="button" role="radio" aria-checked="false" data-view-mode="list-comfort">
+                <span class="view-mode-preview preview-list-comfort" aria-hidden="true"><i></i><i></i><i></i></span>
+                <span data-i18n="viewListComfort">Comfortable list</span>
+              </button>
+              <button class="view-mode-option" type="button" role="radio" aria-checked="false" data-view-mode="list-compact">
+                <span class="view-mode-preview preview-list-compact" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+                <span data-i18n="viewListCompact">Compact list</span>
+              </button>
+            </div>
           </div>
         </div>
-      </div>
-
-      <!-- Accent colour -->
-      <div class="setting-group">
-        <span class="setting-label" data-i18n="accentColor">Accent Colour</span>
-        <div class="color-row">
-          <input type="color" id="color-pick" />
-          <span class="color-hex" id="color-hex">#00BFA5</span>
-          <span class="color-note" data-i18n="accentNote">Applies to buttons and focus rings. Backgrounds stay neutral.</span>
-        </div>
-      </div>
-
-      <!-- Theme -->
-      <div class="setting-group">
-        <span class="setting-label" data-i18n="theme">Theme</span>
-        <div class="toggle-row">
-          <label class="toggle">
-            <input type="checkbox" id="theme-chk" />
-            <div class="toggle-track"></div>
-            <div class="toggle-knob"></div>
-          </label>
-          <span class="toggle-lbl" id="theme-lbl">Dark</span>
-        </div>
-      </div>
-
-      <!-- View mode -->
-      <div class="setting-group">
-        <span class="setting-label" data-i18n="viewMode">View Mode</span>
-        <select id="view-mode" class="setting-select" aria-label="View mode">
-          <option value="cards-small" data-i18n="viewCardsSmall">Cards (smaller)</option>
-          <option value="cards-medium" data-i18n="viewCardsMedium">Cards (medium)</option>
-          <option value="cards-large" data-i18n="viewCardsLarge">Cards (larger)</option>
-          <option value="list-comfort" data-i18n="viewListComfort">Comfortable list</option>
-          <option value="list-compact" data-i18n="viewListCompact">Compact list</option>
-        </select>
       </div>
     </div>
 
@@ -223,7 +239,7 @@
     <div class="admin-section" id="sec-security">
       <h2 class="sec-title" data-i18n="security">Security</h2>
 
-      <div class="setting-group">
+      <div class="setting-group security-card">
         <span class="setting-label" data-i18n="changePw">Change Password</span>
         <div class="pw-fields">
           <div class="field">
@@ -239,6 +255,75 @@
           <span class="inline-err" id="pw-err" aria-live="polite"></span>
         </div>
       </div>
+    </div>
+
+    <!-- ── Video Processing section ── -->
+    <div class="admin-section" id="sec-video-processing">
+      <div class="vp-page-heading">
+        <div>
+          <h2 class="sec-title" data-i18n="videoProcessing">Video Processing</h2>
+          <p class="vp-page-subtitle" data-i18n="videoProcessingSubtitle">Analyse the media library, optimize compatible files without quality loss, and transcode only when required.</p>
+        </div>
+        <button class="btn btn-surface" id="analyze-btn" type="button" data-i18n="analyzeLibrary">Analyse library</button>
+      </div>
+
+      <section class="vp-guidance" aria-labelledby="vp-guidance-title">
+        <div class="vp-guidance-icon" aria-hidden="true">i</div>
+        <div>
+          <strong id="vp-guidance-title" data-i18n="processingGuideTitle">Compatibility repair, not general compression</strong>
+          <p data-i18n="processingGuideBody">Only videos that need changes to play reliably in the kiosk can be processed. Videos that already work are left untouched, regardless of file size. The profile below only controls the quality and file-size tradeoff when conversion is actually required.</p>
+          <p class="vp-guidance-detail" data-i18n="processingGuideDetail">Optimize can reorganize a compatible file without re-encoding. Transcode converts unsupported video or audio formats into a player-compatible format.</p>
+        </div>
+      </section>
+
+      <section class="setting-group vp-profile-section">
+        <span class="setting-label" data-i18n="processingProfile">Processing profile</span>
+        <div class="vp-profile-options" role="radiogroup" aria-label="Processing profile">
+          <label class="vp-profile-card">
+            <input type="radio" name="processing-profile" value="recommended" checked />
+            <span class="vp-profile-choice">
+              <strong data-i18n="profileRecommended">Recommended</strong>
+              <span data-i18n="profileRecommendedHelp">Balanced for most displays: good image quality with a moderate reduction in file size.</span>
+            </span>
+          </label>
+          <label class="vp-profile-card">
+            <input type="radio" name="processing-profile" value="smaller" />
+            <span class="vp-profile-choice">
+              <strong data-i18n="profileSmaller">Smaller files</strong>
+              <span data-i18n="profileSmallerHelp">Reduces file size more aggressively, with some loss of image quality.</span>
+            </span>
+          </label>
+          <label class="vp-profile-card">
+            <input type="radio" name="processing-profile" value="high" />
+            <span class="vp-profile-choice">
+              <strong data-i18n="profileHigh">High quality</strong>
+              <span data-i18n="profileHighHelp">Keeps more image detail with lighter compression, producing larger files.</span>
+            </span>
+          </label>
+        </div>
+      </section>
+
+      <section class="setting-group">
+        <div class="vp-toolbar">
+          <div class="vp-filters" role="group" aria-label="Video status filters">
+            <button class="vp-filter-btn active" type="button" data-filter="all"><span data-i18n="filterAll">All</span></button>
+            <button class="vp-filter-btn" type="button" data-filter="processed"><span data-i18n="filterProcessed">Processed</span></button>
+            <button class="vp-filter-btn" type="button" data-filter="unprocessed"><span data-i18n="filterUnprocessed">Unprocessed</span></button>
+          </div>
+          <div class="vp-toolbar-actions">
+            <select id="vp-lang-filter" class="setting-select vp-lang-filter" aria-label="Filter language"><option value="all">All</option></select>
+            <button class="btn" id="process-selected-btn" type="button" disabled data-i18n="processSelected">Process selected</button>
+          </div>
+        </div>
+        <div id="video-status-grid" class="vp-list" aria-live="polite"></div>
+      </section>
+
+      <section id="processing-panel" class="vp-processing-panel hidden" aria-live="polite">
+        <div class="vp-job-head"><div><h3 id="vp-job-title">Processing</h3><p id="vp-job-file"></p></div><button class="btn btn-ghost" id="cancel-job-btn" type="button" data-i18n="cancelProcessing">Cancel</button></div>
+        <div class="vp-progress-track"><div id="vp-progress-bar" class="vp-progress-bar"></div></div>
+        <div id="vp-progress-text" class="vp-progress-text">0%</div>
+        <details id="processing-log" class="vp-log-details"><summary data-i18n="technicalLog">Technical log</summary><pre id="log-output"></pre></details>
+      </section>
     </div>
 
     <!-- ── About section ── -->
@@ -283,62 +368,6 @@
           </div>
         </div>
       </div>
-    </div>
-
-    <!-- ── Video Processing section ── -->
-    <div class="admin-section" id="sec-video-processing">
-      <div class="vp-page-heading">
-        <div>
-          <h2 class="sec-title" data-i18n="videoProcessing">Video Processing</h2>
-          <p class="vp-page-subtitle" data-i18n="videoProcessingSubtitle">Analyse the media library, optimize compatible files without quality loss, and transcode only when required.</p>
-        </div>
-        <button class="btn btn-surface" id="analyze-btn" type="button" data-i18n="analyzeLibrary">Analyse library</button>
-      </div>
-
-      <section class="vp-health-card" aria-labelledby="vp-health-title">
-        <div class="vp-health-head"><div><span class="setting-label-inline" id="vp-health-title" data-i18n="mediaHealth">Media health</span><span class="vp-last"><span data-i18n="lastAnalyzed">Last analysed</span>: <strong id="vp-last-analyzed">—</strong></span></div><div id="vp-analysis-spinner" class="spin vp-mini-spin hidden" aria-hidden="true"></div></div>
-        <div class="vp-summary-grid">
-          <div class="vp-summary"><strong id="vp-summary-total">0</strong><span data-i18n="total">Total</span></div>
-          <div class="vp-summary ready"><strong id="vp-summary-ready">0</strong><span data-i18n="statusReady">Ready</span></div>
-          <div class="vp-summary optimize"><strong id="vp-summary-optimize">0</strong><span data-i18n="statusOptimize">Optimize</span></div>
-          <div class="vp-summary transcode"><strong id="vp-summary-transcode">0</strong><span data-i18n="statusTranscode">Transcode</span></div>
-          <div class="vp-summary error"><strong id="vp-summary-error">0</strong><span data-i18n="statusError">Errors</span></div>
-        </div>
-      </section>
-
-      <section class="setting-group vp-profile-section">
-        <span class="setting-label" data-i18n="processingProfile">Processing profile</span>
-        <select id="processing-profile" class="setting-select" aria-label="Processing profile">
-          <option value="recommended" data-i18n="profileRecommended">Recommended</option>
-          <option value="high" data-i18n="profileHigh">High quality</option>
-          <option value="smaller" data-i18n="profileSmaller">Smaller files</option>
-        </select>
-        <p class="vp-profile-help" id="processing-profile-help"></p>
-      </section>
-
-      <section class="setting-group">
-        <div class="vp-toolbar">
-          <div class="vp-filters" role="group" aria-label="Video status filters">
-            <button class="vp-filter-btn active" type="button" data-filter="all"><span data-i18n="filterAll">All</span></button>
-            <button class="vp-filter-btn" type="button" data-filter="attention"><span data-i18n="filterAttention">Needs attention</span> <span class="vp-filter-count">0</span></button>
-            <button class="vp-filter-btn" type="button" data-filter="ready"><span data-i18n="filterReady">Ready</span></button>
-            <button class="vp-filter-btn" type="button" data-filter="error"><span data-i18n="filterErrors">Errors</span></button>
-          </div>
-          <select id="vp-lang-filter" class="setting-select vp-lang-filter" aria-label="Filter language"><option value="all">All</option></select>
-        </div>
-        <div class="vp-selection-bar">
-          <label class="vp-check-label"><input id="vp-select-attention" type="checkbox" /> <span data-i18n="selectAttention">Select all needing attention</span></label>
-          <button class="btn" id="process-selected-btn" type="button" disabled data-i18n="processSelected">Process selected</button>
-        </div>
-        <div id="video-status-grid" class="vp-list" aria-live="polite"></div>
-      </section>
-
-      <section id="processing-panel" class="vp-processing-panel hidden" aria-live="polite">
-        <div class="vp-job-head"><div><h3 id="vp-job-title">Processing</h3><p id="vp-job-file"></p></div><button class="btn btn-ghost" id="cancel-job-btn" type="button" data-i18n="cancelProcessing">Cancel</button></div>
-        <div class="vp-progress-track"><div id="vp-progress-bar" class="vp-progress-bar"></div></div>
-        <div id="vp-progress-text" class="vp-progress-text">0%</div>
-        <details id="processing-log" class="vp-log-details"><summary data-i18n="technicalLog">Technical log</summary><pre id="log-output"></pre></details>
-      </section>
     </div>
 
   </div><!-- /.admin-main -->

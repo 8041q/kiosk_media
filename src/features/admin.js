@@ -1,11 +1,13 @@
 import { apiFetch } from '../core/api.js';
 import { cfg, draft, catalog, ui, resetDraft, commitDraft, saveSettings } from '../core/state.js';
 import { $, escHtml, showToast, applyAccent, applyTheme, applyViewMode, applyLogo, refreshAboutPanel, openAboutLink, showScreen } from '../core/ui.js';
-import { LANGUAGES, t, tf, applyI18n } from '../core/i18n.js';
-import { refreshCatalog, renderMainScreen, queueMeta, bindThumbImage, renderLanguageSwitcher } from './library.js';
+import { LANGUAGES, t, applyI18n } from '../core/i18n.js';
+import { refreshCatalog, renderMainScreen, queueMetaVisible, clearPendingMeta, bindThumbImage, renderLanguageSwitcher } from './library.js';
 import { hideOnScreenKeyboard } from './keyboard.js';
 
 let wired = false;
+const LOGO_CANDIDATES = ['assets/logo.png', 'assets/logo.jpg', 'assets/logo.svg'];
+let logoPreviewToken = 0;
 
 export function openAdmin() {
   $('admin-auth-wrap')?.classList.remove('hidden');
@@ -30,10 +32,24 @@ function openAdminPanel() {
   applyI18n(); renderAdminLanguageSelect(); renderVideoAdminGrid(); refreshLogoPreview(); refreshAboutPanel();
   $('color-pick').value = draft.accent; $('color-hex').textContent = draft.accent;
   $('theme-chk').checked = draft.lightMode; $('theme-lbl').textContent = draft.lightMode ? t('light') : t('dark');
-  $('view-mode').value = draft.viewMode;
+  syncViewModePicker();
   $('pw1').value = ''; $('pw2').value = ''; $('pw-err').textContent = '';
-  const profile = $('processing-profile'); if (profile) profile.value = draft.processingProfile || 'recommended';
   adminNavTo('videos');
+}
+
+function syncViewModePicker() {
+  document.querySelectorAll('.view-mode-option').forEach(btn => {
+    const active = btn.dataset.viewMode === draft.viewMode;
+    btn.classList.toggle('active', active);
+    btn.setAttribute('aria-checked', String(active));
+  });
+}
+
+function selectViewMode(mode) {
+  if (!mode) return;
+  draft.viewMode = mode;
+  syncViewModePicker();
+  applyViewMode(mode);
 }
 
 export function adminNavTo(section) {
@@ -53,19 +69,29 @@ function renderAdminLanguageSelect() {
 
 function renderVideoAdminGrid() {
   const grid = $('video-admin-grid'); const empty = $('vac-empty'); if (!grid || !empty) return;
+  clearPendingMeta(grid);
   grid.querySelectorAll('.vid-admin-card').forEach(card => card.remove());
   const videos = catalog.byLanguage[ui.adminLanguage] || [];
   empty.style.display = videos.length ? 'none' : '';
   const langTitles = draft.videoTitles[ui.adminLanguage] || {};
+  const selected = new Set(draft.selectedIds);
+  const fragment = document.createDocumentFragment();
+
   videos.forEach(video => {
-    const enabled = draft.selectedIds.includes(video.id);
+    const enabled = selected.has(video.id);
     const card = document.createElement('div'); card.className = `vid-admin-card${enabled ? ' enabled' : ''}`; card.dataset.id = video.id;
-    card.innerHTML = `<div class="vac-thumb"><div class="vac-thumb-shimmer"></div><img alt="${escHtml(video.title)}"></div><div class="vac-body"><div class="vac-toggle-row"><label class="toggle"><input type="checkbox" class="vac-enabled-cb" ${enabled ? 'checked' : ''}><div class="toggle-track"></div><div class="toggle-knob"></div></label><span class="vac-toggle-lbl">${escHtml(t('showOnScreen'))}</span></div><div class="field" style="margin-top:6px"><label style="font-size:.72rem;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:.07em">${escHtml(t('displayName'))}</label><input type="text" class="vac-name-input" value="${escHtml(langTitles[video.id] || video.title)}" placeholder="${escHtml(video.title)}"></div></div>`;
-    queueMeta(video, url => bindThumbImage(card.querySelector('img'), card.querySelector('.vac-thumb-shimmer'), url));
+    card.innerHTML = `<div class="vac-thumb"><div class="vac-thumb-shimmer"></div><img alt="${escHtml(video.title)}"></div><div class="vac-body"><div class="vac-toggle-row"><label class="toggle"><input type="checkbox" class="vac-enabled-cb" ${enabled ? 'checked' : ''}><div class="toggle-track"></div><div class="toggle-knob"></div></label><span class="vac-toggle-lbl">${escHtml(t('showOnScreen'))}</span></div><div class="field" style="margin-top:6px"><label style="font-size:.72rem;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:.07em">${escHtml(t('displayName'))}</label><input type="text" class="vac-name-input" value="${escHtml(langTitles[video.id] || video.title)}" placeholder="${escHtml(video.title)}" inputmode="none" autocomplete="off" data-osk="true"></div></div>`;
+    const img = card.querySelector('img');
+    const shimmer = card.querySelector('.vac-thumb-shimmer');
+    queueMetaVisible(card, video, url => bindThumbImage(img, shimmer, url));
     const cb = card.querySelector('.vac-enabled-cb');
     cb.addEventListener('change', () => {
-      if (cb.checked) { if (!draft.selectedIds.includes(video.id)) draft.selectedIds.push(video.id); draft.disabledIds = draft.disabledIds.filter(id => id !== video.id); }
-      else { draft.selectedIds = draft.selectedIds.filter(id => id !== video.id); if (!draft.disabledIds.includes(video.id)) draft.disabledIds.push(video.id); }
+      const selectedIds = new Set(draft.selectedIds);
+      const disabledIds = new Set(draft.disabledIds);
+      if (cb.checked) { selectedIds.add(video.id); disabledIds.delete(video.id); }
+      else { selectedIds.delete(video.id); disabledIds.add(video.id); }
+      draft.selectedIds = [...selectedIds];
+      draft.disabledIds = [...disabledIds];
       card.classList.toggle('enabled', cb.checked);
     });
     const input = card.querySelector('.vac-name-input');
@@ -74,34 +100,59 @@ function renderVideoAdminGrid() {
       const value = input.value.trim();
       if (value && value !== video.title) draft.videoTitles[ui.adminLanguage][video.id] = value; else delete draft.videoTitles[ui.adminLanguage][video.id];
     });
-    grid.appendChild(card);
+    fragment.appendChild(card);
   });
-}
-
-function setAllCurrent(enabled) {
-  for (const video of catalog.byLanguage[ui.adminLanguage] || []) {
-    if (enabled) { if (!draft.selectedIds.includes(video.id)) draft.selectedIds.push(video.id); draft.disabledIds = draft.disabledIds.filter(id => id !== video.id); }
-    else { draft.selectedIds = draft.selectedIds.filter(id => id !== video.id); if (!draft.disabledIds.includes(video.id)) draft.disabledIds.push(video.id); }
-  }
-  renderVideoAdminGrid();
+  grid.appendChild(fragment);
 }
 
 async function scanMedia() {
   const btn = $('scan-btn'); btn.disabled = true; btn.textContent = t('scanning');
   try {
     await refreshCatalog({ toast: true });
-    for (const video of catalog.all) {
-      if (!draft.selectedIds.includes(video.id) && !draft.disabledIds.includes(video.id)) draft.selectedIds.push(video.id);
-    }
+    const selected = new Set(draft.selectedIds);
+    const disabled = new Set(draft.disabledIds);
+    for (const video of catalog.all) if (!selected.has(video.id) && !disabled.has(video.id)) selected.add(video.id);
+    draft.selectedIds = [...selected];
     renderAdminLanguageSelect(); renderVideoAdminGrid(); renderLanguageSwitcher();
   } catch (err) { showToast(err.message); }
   finally { btn.disabled = false; btn.textContent = t('scan'); }
 }
 
+function setLogoPreview(src, { removable = false } = {}) {
+  const img = $('logo-prev-img');
+  const empty = $('logo-no-logo');
+  const remove = $('logo-remove');
+  if (!img || !empty || !remove) return;
+  if (src) {
+    img.src = src;
+    img.classList.add('visible');
+    empty.style.display = 'none';
+  } else {
+    img.removeAttribute('src');
+    img.classList.remove('visible');
+    empty.style.display = '';
+  }
+  remove.style.display = removable ? '' : 'none';
+}
+
 function refreshLogoPreview() {
-  const img = $('logo-prev-img'); const empty = $('logo-no-logo'); const remove = $('logo-remove'); if (!img || !empty || !remove) return;
-  if (draft.logoSrc) { img.src = draft.logoSrc; img.classList.add('visible'); empty.style.display = 'none'; remove.style.display = ''; }
-  else { img.removeAttribute('src'); img.classList.remove('visible'); empty.style.display = ''; remove.style.display = 'none'; }
+  const token = ++logoPreviewToken;
+  if (draft.logoSrc) {
+    setLogoPreview(draft.logoSrc, { removable: true });
+    return;
+  }
+
+  let index = 0;
+  const tryNext = () => {
+    if (token !== logoPreviewToken) return;
+    if (index >= LOGO_CANDIDATES.length) { setLogoPreview('', { removable: false }); return; }
+    const src = LOGO_CANDIDATES[index++];
+    const probe = new Image();
+    probe.onload = () => { if (token === logoPreviewToken) setLogoPreview(src, { removable: false }); };
+    probe.onerror = tryNext;
+    probe.src = src;
+  };
+  tryNext();
 }
 
 function discardAndReturn() {
@@ -145,20 +196,25 @@ export function initAdmin() {
   $('auth-input')?.addEventListener('keydown', e => { if (e.key === 'Enter') checkAuth(); });
   $('auth-cancel')?.addEventListener('click', () => showScreen('main'));
   document.querySelectorAll('.snav-btn').forEach(btn => btn.addEventListener('click', () => adminNavTo(btn.dataset.sec)));
-  $('chk-all')?.addEventListener('click', () => setAllCurrent(true)); $('chk-none')?.addEventListener('click', () => setAllCurrent(false));
   $('scan-btn')?.addEventListener('click', scanMedia);
-  $('logo-file')?.addEventListener('change', e => {
+  const logoFile = $('logo-file');
+  $('logo-upload')?.addEventListener('click', () => logoFile?.click());
+  $('logo-preview-box')?.addEventListener('click', () => logoFile?.click());
+  $('logo-preview-box')?.addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); logoFile?.click(); }
+  });
+  logoFile?.addEventListener('change', e => {
     const file = e.target.files[0]; if (!file) return;
     if (!file.type.startsWith('image/')) { showToast(t('pickImageFile')); return; }
     if (file.size > 3 * 1024 * 1024) { showToast(t('imageUnder3mb')); return; }
-    const reader = new FileReader(); reader.onload = ev => { draft.logoSrc = ev.target.result; refreshLogoPreview(); }; reader.readAsDataURL(file);
+    const reader = new FileReader(); reader.onload = ev => { draft.logoSrc = ev.target.result; refreshLogoPreview(); e.target.value = ''; }; reader.readAsDataURL(file);
   });
-  $('logo-remove')?.addEventListener('click', () => { draft.logoSrc = null; refreshLogoPreview(); });
+  $('logo-remove')?.addEventListener('click', e => { e.stopPropagation(); draft.logoSrc = null; refreshLogoPreview(); });
   $('about-github')?.addEventListener('click', async () => { if (!(await openAboutLink('github'))) showToast(t('aboutLinkFailed')); });
   $('about-issues')?.addEventListener('click', async () => { if (!(await openAboutLink('issues'))) showToast(t('aboutLinkFailed')); });
   $('color-pick')?.addEventListener('input', e => { draft.accent = e.target.value; $('color-hex').textContent = draft.accent; applyAccent(draft.accent); });
   $('theme-chk')?.addEventListener('change', e => { draft.lightMode = e.target.checked; $('theme-lbl').textContent = draft.lightMode ? t('light') : t('dark'); applyTheme(draft.lightMode); });
-  $('view-mode')?.addEventListener('change', e => { draft.viewMode = e.target.value; applyViewMode(draft.viewMode); });
+  document.querySelectorAll('.view-mode-option').forEach(btn => btn.addEventListener('click', () => selectViewMode(btn.dataset.viewMode)));
   $('panel-return')?.addEventListener('click', discardAndReturn); $('panel-save')?.addEventListener('click', saveAndReturn); $('panel-exit')?.addEventListener('click', exitKiosk);
   $('screen-admin')?.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('admin-auth-wrap')?.classList.contains('hidden')) return; if (e.key === 'Escape') { e.preventDefault(); discardAndReturn(); } });
 }

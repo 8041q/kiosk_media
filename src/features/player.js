@@ -69,9 +69,9 @@ function openVideo(record, tileIdx) {
   const v = $('player-video');
   $('player-error')?.classList.remove('active'); $('player-spinner')?.classList.add('active'); $('player-hud')?.classList.remove('hud-faded');
   const vol = Math.max(0, Math.min(1, cfg.videoVolumes[record.id] ?? 1));
-  v.volume = vol; updateVolUI(vol); v.src = record.src;
+  v.muted = false; v.volume = vol; updateVolUI(vol); v.src = record.src;
   showScreen('player'); refocus(); syncPlayButton();
-  v.play().catch(() => { $('player-spinner')?.classList.remove('active'); hudActivity(); syncPlayButton(); });
+  v.play().catch(() => { $('player-spinner')?.classList.remove('active'); hudActivity(); startIdleTimer(); syncPlayButton(); });
 }
 
 export function initPlayer() {
@@ -94,11 +94,11 @@ export function initPlayer() {
       case ' ': case 'Enter': case 'NumpadEnter': case 'MediaPlayPause': e.preventDefault(); togglePlayback(); break;
       case 'ArrowLeft': case 'MediaRewind': e.preventDefault(); seek(-SEEK_STEP_SECONDS); break;
       case 'ArrowRight': case 'MediaFastForward': e.preventDefault(); seek(SEEK_STEP_SECONDS); break;
-      case 'ArrowUp': e.preventDefault(); v.volume = Math.min(1, v.volume + 0.05); updateVolUI(v.volume); cfg.videoVolumes[ui.currentVideoId] = v.volume; saveSettingsSoon(); break;
-      case 'ArrowDown': e.preventDefault(); v.volume = Math.max(0, v.volume - 0.05); updateVolUI(v.volume); cfg.videoVolumes[ui.currentVideoId] = v.volume; saveSettingsSoon(); break;
+      case 'ArrowUp': e.preventDefault(); v.muted = false; v.volume = Math.min(1, v.volume + 0.05); updateVolUI(v.volume); cfg.videoVolumes[ui.currentVideoId] = v.volume; saveSettingsSoon(); break;
+      case 'ArrowDown': e.preventDefault(); v.muted = false; v.volume = Math.max(0, v.volume - 0.05); updateVolUI(v.volume); cfg.videoVolumes[ui.currentVideoId] = v.volume; saveSettingsSoon(); break;
     }
   });
-  $('player-vol')?.addEventListener('input', e => { const value = Number(e.target.value); v.volume = value; updateVolUI(value); if (ui.currentVideoId) { cfg.videoVolumes[ui.currentVideoId] = value; saveSettingsSoon(); } hudActivity(); });
+  $('player-vol')?.addEventListener('input', e => { const value = Number(e.target.value); v.muted = false; v.volume = value; updateVolUI(value); if (ui.currentVideoId) { cfg.videoVolumes[ui.currentVideoId] = value; saveSettingsSoon(); } hudActivity(); });
   $('player-vol-icon')?.addEventListener('click', () => { v.muted = !v.muted; updateVolUI(v.muted ? 0 : v.volume); hudActivity(); refocus(); });
   $('player-play-toggle')?.addEventListener('click', () => { togglePlayback(); refocus(); });
   $('player-rewind')?.addEventListener('click', () => { seek(-SEEK_STEP_SECONDS); refocus(); });
