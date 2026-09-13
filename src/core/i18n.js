@@ -80,9 +80,14 @@ export const LANGUAGES = [
  * @property {string} aboutBuildDate
  * @property {string} aboutLicense
  * @property {string} aboutAuthor
- * @property {string} aboutGithub
- * @property {string} aboutIssues
- * @property {string} aboutLinkFailed
+ * @property {string} aboutSupportTitle
+ * @property {string} aboutSupportHelp
+ * @property {string} aboutProject
+ * @property {string} aboutProjectHelp
+ * @property {string} aboutSupport
+ * @property {string} aboutSupportIssuesHelp
+ * @property {string} aboutGithubQrAlt
+ * @property {string} aboutIssuesQrAlt
  */
 
 /** @type {Object.<string, UIStrings>} */
@@ -138,8 +143,9 @@ export const UI_STRINGS = {
 
     aboutEyebrow:'Portable kiosk app', aboutDescription:'Fullscreen media kiosk for exhibitions with multilingual playback, admin controls, and local offline-friendly hosting.',
     aboutImageFallback:'Brand image unavailable', aboutVersion:'Version', aboutBuildDate:'Build date', aboutLicense:'License', aboutAuthor:'Author',
-    aboutGithub:'View on GitHub', aboutIssues:'Report an issue',
-    aboutLinkFailed:'Could not open the link in the default browser.',
+    aboutSupportTitle:'Project & Support', aboutSupportHelp:'Scan with your phone to view the project or report a problem.\n The kiosk will stay on this screen.',
+    aboutProject:'Project page', aboutProjectHelp:'Source code and project information', aboutSupport:'Report a problem', aboutSupportIssuesHelp:'Open the project issue tracker on your phone',
+    aboutGithubQrAlt:'QR code for the GitHub project page', aboutIssuesQrAlt:'QR code for the GitHub issue tracker',
   },
   pt: {
      back:'Voltar', adminTitle:'Configurações',
@@ -191,8 +197,9 @@ export const UI_STRINGS = {
     processingProgress:'Processando', cancelProcessing:'Cancelar', processingComplete:'Processamento concluído', processingCancelled:'Processamento cancelado',
     aboutEyebrow:'Aplicativo de quiosque portátil', aboutDescription:'Quiosque de mídia em tela cheia para exposições, com reprodução multilíngue, controles administrativos e hospedagem local pronta para uso offline.',
     aboutImageFallback:'Imagem da marca indisponível', aboutVersion:'Versão', aboutBuildDate:'Data da compilação', aboutLicense:'Licença', aboutAuthor:'Autor',
-    aboutGithub:'Ver no GitHub', aboutIssues:'Reportar um problema',
-    aboutLinkFailed:'Não foi possível abrir o link no navegador padrão.',
+    aboutSupportTitle:'Projeto e suporte', aboutSupportHelp:'Leia o código QR com o telemóvel para ver o projeto ou comunicar um problema. O quiosque permanece neste ecrã.',
+    aboutProject:'Página do projeto', aboutProjectHelp:'Código-fonte e informações do projeto', aboutSupport:'Comunicar um problema', aboutSupportIssuesHelp:'Abra o rastreador de problemas do projeto no telemóvel',
+    aboutGithubQrAlt:'Código QR para a página do projeto no GitHub', aboutIssuesQrAlt:'Código QR para o rastreador de problemas no GitHub',
   },
   es: {
      back:'Volver', adminTitle:'Configuración',
@@ -244,8 +251,9 @@ export const UI_STRINGS = {
     processingProgress:'Procesando', cancelProcessing:'Cancelar', processingComplete:'Procesamiento completado', processingCancelled:'Procesamiento cancelado',
     aboutEyebrow:'Aplicación de kiosco portátil', aboutDescription:'Kiosco multimedia de pantalla completa para exposiciones, con reproducción multilingüe, controles administrativos y alojamiento local compatible con uso sin conexión.',
     aboutImageFallback:'Imagen de marca no disponible', aboutVersion:'Versión', aboutBuildDate:'Fecha de compilación', aboutLicense:'Licencia', aboutAuthor:'Autor',
-    aboutGithub:'Ver en GitHub', aboutIssues:'Reportar un problema',
-    aboutLinkFailed:'No se pudo abrir el enlace en el navegador predeterminado.',
+    aboutSupportTitle:'Proyecto y soporte', aboutSupportHelp:'Escanea el código QR con tu teléfono para ver el proyecto o informar de un problema. El kiosco permanecerá en esta pantalla.',
+    aboutProject:'Página del proyecto', aboutProjectHelp:'Código fuente e información del proyecto', aboutSupport:'Informar de un problema', aboutSupportIssuesHelp:'Abre el rastreador de incidencias del proyecto en tu teléfono',
+    aboutGithubQrAlt:'Código QR para la página del proyecto en GitHub', aboutIssuesQrAlt:'Código QR para el rastreador de incidencias en GitHub',
   },
   fr: {
      back:'Retour', adminTitle:'Paramètres',
@@ -297,8 +305,9 @@ export const UI_STRINGS = {
     processingProgress:'Traitement', cancelProcessing:'Annuler', processingComplete:'Traitement terminé', processingCancelled:'Traitement annulé',
     aboutEyebrow:'Application kiosque portable', aboutDescription:'Kiosque multimédia plein écran pour expositions, avec lecture multilingue, contrôles d\'administration et hébergement local compatible hors ligne.',
     aboutImageFallback:'Image de marque indisponible', aboutVersion:'Version', aboutBuildDate:'Date de build', aboutLicense:'Licence', aboutAuthor:'Auteur',
-    aboutGithub:'Voir sur GitHub', aboutIssues:'Signaler un problème',
-    aboutLinkFailed:'Impossible d\'ouvrir le lien dans le navigateur par défaut.',
+    aboutSupportTitle:'Projet et assistance', aboutSupportHelp:'Scannez le code QR avec votre téléphone pour voir le projet ou signaler un problème. Le kiosque restera sur cet écran.',
+    aboutProject:'Page du projet', aboutProjectHelp:'Code source et informations sur le projet', aboutSupport:'Signaler un problème', aboutSupportIssuesHelp:'Ouvrez le suivi des problèmes du projet sur votre téléphone',
+    aboutGithubQrAlt:'Code QR vers la page du projet GitHub', aboutIssuesQrAlt:'Code QR vers le suivi des problèmes GitHub',
   },
   zh: {
      back:'返回', adminTitle:'展台设置',
@@ -350,8 +359,9 @@ export const UI_STRINGS = {
     processingProgress:'处理中', cancelProcessing:'取消', processingComplete:'处理完成', processingCancelled:'处理已取消',
     aboutEyebrow:'便携式展台应用', aboutDescription:'适用于展览的全屏媒体展台，支持多语言播放、管理控制以及适合离线使用的本地主机。',
     aboutImageFallback:'品牌图片不可用', aboutVersion:'版本', aboutBuildDate:'构建日期', aboutLicense:'许可证', aboutAuthor:'作者',
-    aboutGithub:'在 GitHub 上查看', aboutIssues:'报告问题',
-    aboutLinkFailed:'无法在默认浏览器中打开该链接。',
+    aboutSupportTitle:'项目与支持', aboutSupportHelp:'使用手机扫描二维码查看项目或报告问题。展台将保持在当前页面。',
+    aboutProject:'项目页面', aboutProjectHelp:'源代码和项目信息', aboutSupport:'报告问题', aboutSupportIssuesHelp:'在手机上打开项目问题追踪页面',
+    aboutGithubQrAlt:'GitHub 项目页面二维码', aboutIssuesQrAlt:'GitHub 问题追踪页面二维码',
   },
 };
 
@@ -447,6 +457,10 @@ export function applyI18n() {
   document.querySelectorAll('[data-i18n-ph]').forEach(el => {
     const key = el.dataset.i18nPh;
     el.setAttribute('placeholder', t(key));
+  });
+  document.querySelectorAll('[data-i18n-alt]').forEach(el => {
+    const key = el.dataset.i18nAlt;
+    el.setAttribute('alt', t(key));
   });
   document.documentElement.lang = currentLanguage;
 }

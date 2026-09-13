@@ -1,6 +1,6 @@
 import { apiFetch } from '../core/api.js';
 import { cfg, draft, catalog, ui, resetDraft, commitDraft, saveSettings } from '../core/state.js';
-import { $, escHtml, showToast, applyAccent, applyTheme, applyViewMode, applyLogo, refreshAboutPanel, openAboutLink, showScreen } from '../core/ui.js';
+import { $, escHtml, showToast, applyAccent, applyTheme, applyViewMode, applyLogo, refreshAboutPanel, showScreen } from '../core/ui.js';
 import { LANGUAGES, t, applyI18n } from '../core/i18n.js';
 import { refreshCatalog, renderMainScreen, queueMetaVisible, clearPendingMeta, bindThumbImage, renderLanguageSwitcher } from './library.js';
 import { hideOnScreenKeyboard, prepareOnScreenKeyboardInput } from './keyboard.js';
@@ -211,8 +211,6 @@ export function initAdmin() {
     const reader = new FileReader(); reader.onload = ev => { draft.logoSrc = ev.target.result; refreshLogoPreview(); e.target.value = ''; }; reader.readAsDataURL(file);
   });
   $('logo-remove')?.addEventListener('click', e => { e.stopPropagation(); draft.logoSrc = null; refreshLogoPreview(); });
-  $('about-github')?.addEventListener('click', async () => { if (!(await openAboutLink('github'))) showToast(t('aboutLinkFailed')); });
-  $('about-issues')?.addEventListener('click', async () => { if (!(await openAboutLink('issues'))) showToast(t('aboutLinkFailed')); });
   $('color-pick')?.addEventListener('input', e => { draft.accent = e.target.value; $('color-hex').textContent = draft.accent; applyAccent(draft.accent); });
   $('theme-chk')?.addEventListener('change', e => { draft.lightMode = e.target.checked; $('theme-lbl').textContent = draft.lightMode ? t('light') : t('dark'); applyTheme(draft.lightMode); });
   document.querySelectorAll('.view-mode-option').forEach(btn => btn.addEventListener('click', () => selectViewMode(btn.dataset.viewMode)));

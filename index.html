@@ -362,10 +362,34 @@
             </div>
           </div>
 
-          <div class="about-link-row">
-            <button class="btn btn-surface" id="about-github" type="button" data-i18n="aboutGithub">View on GitHub</button>
-            <button class="btn btn-ghost" id="about-issues" type="button" data-i18n="aboutIssues">Report an issue</button>
-          </div>
+          <section class="about-support" aria-labelledby="about-support-title">
+            <div class="about-support-head">
+              <span class="setting-label-inline" id="about-support-title" data-i18n="aboutSupportTitle">Project &amp; Support</span>
+              <p data-i18n="aboutSupportHelp">Scan with your phone to view the project or report a problem. The kiosk will stay on this screen.</p>
+            </div>
+            <div class="about-qr-grid">
+              <div class="about-qr-card">
+                <div class="about-qr-image-wrap">
+                  <img src="assets/qr-github.png" alt="GitHub project QR code" data-i18n-alt="aboutGithubQrAlt" />
+                </div>
+                <div class="about-qr-copy">
+                  <strong data-i18n="aboutProject">Project page</strong>
+                  <span data-i18n="aboutProjectHelp">Source code and project information</span>
+                  <code>github.com/8041q/kiosk_media</code>
+                </div>
+              </div>
+              <div class="about-qr-card">
+                <div class="about-qr-image-wrap">
+                  <img src="assets/qr-issues.png" alt="GitHub issues QR code" data-i18n-alt="aboutIssuesQrAlt" />
+                </div>
+                <div class="about-qr-copy">
+                  <strong data-i18n="aboutSupport">Report a problem</strong>
+                  <span data-i18n="aboutSupportIssuesHelp">Open the project issue tracker on your phone</span>
+                  <code>github.com/8041q/kiosk_media/issues</code>
+                </div>
+              </div>
+            </div>
+          </section>
         </div>
       </div>
     </div>
