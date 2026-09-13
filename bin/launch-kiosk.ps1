@@ -8,19 +8,14 @@ $serverUrl = "$baseUrl/index.html"
 
 $runtimeDir = Join-Path $projectRoot '.runtime'
 $configDir = Join-Path $projectRoot 'config'
+$logsDir = Join-Path $projectRoot 'logs'
 $pidFile = Join-Path $runtimeDir 'server.pid'
 $browserPidFile = Join-Path $runtimeDir 'browser.pid'
 $kioskProfileDir = Join-Path $runtimeDir 'firefox-profile'
-$configFile = Join-Path $configDir 'kiosk-config.json'
-$serverOutLog = Join-Path $projectRoot 'logs\.kiosk-server.out.log'
-$serverErrLog = Join-Path $projectRoot 'logs\.kiosk-server.err.log'
+$serverOutLog = Join-Path $logsDir '.kiosk-server.out.log'
+$serverErrLog = Join-Path $logsDir '.kiosk-server.err.log'
 
-$legacyServerPidFile = Join-Path $projectRoot 'bin\.kiosk-server.pid'
-$legacyBrowserPidFile = Join-Path $projectRoot 'bin\.kiosk-browser.pid'
-$legacyProfileDir = Join-Path $projectRoot 'bin\.firefox-kiosk-profile'
-$legacyConfigFile = Join-Path $projectRoot 'bin\kiosk-config.json'
-
-foreach ($dir in @($runtimeDir, $configDir, (Join-Path $projectRoot 'logs'))) {
+foreach ($dir in @($runtimeDir, $configDir, $logsDir, $kioskProfileDir)) {
   if (-not (Test-Path -LiteralPath $dir -PathType Container)) {
     New-Item -ItemType Directory -Path $dir -Force | Out-Null
   }
@@ -39,7 +34,7 @@ function Stop-ProcessTreeFromPidFile {
       & taskkill /F /T /PID ([int]$raw) 2>&1 | Out-Null
     }
   } catch {
-    # Best effort cleanup only.
+    # Best-effort cleanup only.
   } finally {
     Remove-Item -LiteralPath $Path -Force -ErrorAction SilentlyContinue
   }
@@ -67,31 +62,14 @@ function Test-KioskServerCurrent {
   }
 }
 
-# Close any previous kiosk Firefox instance before migrating/using its profile.
-foreach ($path in @($browserPidFile, $legacyBrowserPidFile)) {
-  Stop-ProcessTreeFromPidFile -Path $path
-}
+# Close the previous kiosk Firefox instance before reusing its profile.
+Stop-ProcessTreeFromPidFile -Path $browserPidFile
 
 # Catch an orphaned kiosk Firefox process that outlived its PID file.
 $escapedUrl = [Regex]::Escape($serverUrl)
 Get-CimInstance Win32_Process -Filter "Name='firefox.exe'" -ErrorAction SilentlyContinue |
   Where-Object { $_.CommandLine -and $_.CommandLine -match $escapedUrl } |
   ForEach-Object { & taskkill /F /T /PID $_.ProcessId 2>&1 | Out-Null }
-
-# One-time migration from the pre-2.1 layout. The old bin/ locations were runtime
-# storage by accident; config now lives in config/ and transient state in .runtime/.
-if (Test-Path -LiteralPath $legacyConfigFile -PathType Leaf) {
-  Copy-Item -LiteralPath $legacyConfigFile -Destination $configFile -Force
-}
-if (Test-Path -LiteralPath $legacyProfileDir -PathType Container) {
-  if (Test-Path -LiteralPath $kioskProfileDir -PathType Container) {
-    Remove-Item -LiteralPath $kioskProfileDir -Recurse -Force -ErrorAction SilentlyContinue
-  }
-  Move-Item -LiteralPath $legacyProfileDir -Destination $kioskProfileDir -Force
-}
-if (-not (Test-Path -LiteralPath $kioskProfileDir -PathType Container)) {
-  New-Item -ItemType Directory -Path $kioskProfileDir -Force | Out-Null
-}
 
 # First-run Firefox suppression preferences.
 $userJsPath = Join-Path $kioskProfileDir 'user.js'
@@ -109,34 +87,9 @@ user_pref("toolkit.telemetry.reportingpolicy.firstRun", false);
 }
 Remove-Item -LiteralPath (Join-Path $kioskProfileDir 'parent.lock') -Force -ErrorAction SilentlyContinue
 
-# Migrate a manually bundled FFmpeg into the single canonical tools/ location.
-$preferredFfmpegDir = Join-Path $projectRoot 'tools\ffmpeg'
-$legacyFfmpegDirs = @(
-  (Join-Path $projectRoot 'bin\ffmpeg'),
-  (Join-Path $projectRoot 'ffmpeg')
-)
-if (-not (Test-Path -LiteralPath $preferredFfmpegDir -PathType Container)) {
-  $legacyFfmpegDir = $legacyFfmpegDirs | Where-Object { Test-Path -LiteralPath $_ -PathType Container } | Select-Object -First 1
-  if ($legacyFfmpegDir) {
-    if (-not (Test-Path -LiteralPath (Join-Path $projectRoot 'tools') -PathType Container)) {
-      New-Item -ItemType Directory -Path (Join-Path $projectRoot 'tools') -Force | Out-Null
-    }
-    Move-Item -LiteralPath $legacyFfmpegDir -Destination $preferredFfmpegDir -Force
-  }
-}
-if ((Test-Path -LiteralPath (Join-Path $preferredFfmpegDir 'bin\ffmpeg.exe') -PathType Leaf) -and
-    (Test-Path -LiteralPath (Join-Path $preferredFfmpegDir 'bin\ffprobe.exe') -PathType Leaf)) {
-  foreach ($legacyFfmpegDir in $legacyFfmpegDirs) {
-    if (Test-Path -LiteralPath $legacyFfmpegDir -PathType Container) {
-      Remove-Item -LiteralPath $legacyFfmpegDir -Recurse -Force -ErrorAction SilentlyContinue
-    }
-  }
-}
-
 $serverRunning = Test-KioskServerCurrent
 if (-not $serverRunning) {
-  # If a previous launcher lost its PID file, recycle only PowerShell processes
-  # that are clearly serving this kiosk root. This avoids a stale listener on 8765.
+  # Recycle only PowerShell processes clearly serving this kiosk root.
   $rootPattern = [Regex]::Escape($projectRoot)
   Get-CimInstance Win32_Process -Filter "Name='powershell.exe' OR Name='pwsh.exe'" -ErrorAction SilentlyContinue |
     Where-Object {
@@ -146,9 +99,7 @@ if (-not $serverRunning) {
     } |
     ForEach-Object { Stop-Process -Id ([int]$_.ProcessId) -Force -ErrorAction SilentlyContinue }
 
-  foreach ($path in @($pidFile, $legacyServerPidFile)) {
-    Stop-ProcessFromPidFile -Path $path
-  }
+  Stop-ProcessFromPidFile -Path $pidFile
   Remove-Item -LiteralPath $serverOutLog -Force -ErrorAction SilentlyContinue
   Remove-Item -LiteralPath $serverErrLog -Force -ErrorAction SilentlyContinue
 
@@ -176,38 +127,6 @@ if (-not $serverRunning) {
     throw "Kiosk server did not become ready at $serverUrl. Check logs\.kiosk-server.err.log"
   }
 }
-
-# Remove source/runtime artifacts that v2.1 no longer uses. These names are all
-# generated or superseded project files; media content itself is never touched.
-$obsoleteFiles = @(
-  'bin\serve-kiosk.ps1',
-  'bin\generate-media-manifest.ps1',
-  'bin\ffmpeg-wrapper.ps1',
-  'bin\favicon.ico',
-  'bin\favicon.jpg',
-  'media\manifest.js',
-  'media\video-fix-report.json',
-  'src\admin.js',
-  'src\catalog.js',
-  'src\config.js',
-  'src\i18n.js',
-  'src\language.js',
-  'src\logo.js',
-  'src\main-screen.js',
-  'src\osk.js',
-  'src\persistence.js',
-  'src\player.js',
-  'src\screen-router.js',
-  'src\state.js',
-  'src\theme.js',
-  'src\ui.js'
-)
-foreach ($relative in $obsoleteFiles) {
-  Remove-Item -LiteralPath (Join-Path $projectRoot $relative) -Force -ErrorAction SilentlyContinue
-}
-Remove-Item -LiteralPath $legacyConfigFile -Force -ErrorAction SilentlyContinue
-Remove-Item -LiteralPath $legacyServerPidFile -Force -ErrorAction SilentlyContinue
-Remove-Item -LiteralPath $legacyBrowserPidFile -Force -ErrorAction SilentlyContinue
 
 function Resolve-FirefoxPath {
   $candidatePaths = @()

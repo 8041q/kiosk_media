@@ -1,12 +1,16 @@
-# Exhibition Kiosk — v2.1
+# Exhibition Kiosk — v2.2
 
 Portable Windows exhibition kiosk for multilingual local video playback. The UI runs in Firefox kiosk mode and is served by a loopback-only PowerShell HTTP server.
 
 ## Run
 
-Double-click `kiosk.exe` in the repository root. The native launcher starts `bin\launch-kiosk.cmd`, which starts the PowerShell launcher, the local server, and Firefox in kiosk mode.
+Double-click `kiosk.exe` in the repository root.
 
-Fallback: double-click `bin\launch-kiosk.cmd` directly. If startup fails, the window stays open and the server logs are written to:
+`kiosk.exe` starts `bin\launch-kiosk.cmd`, which starts the PowerShell launcher, the local server, and Firefox in kiosk mode.
+
+`bin\launch-kiosk.cmd` is also the recovery entry point. If `kiosk.exe` has been deleted, running `launch-kiosk.cmd` rebuilds it from `bin\kiosk-launcher.cs` through `bin\build-kiosk-exe.ps1`, then starts the kiosk normally.
+
+If startup fails, the CMD window stays open and the server logs are written to:
 
 ```text
 logs/.kiosk-server.out.log
@@ -20,7 +24,7 @@ The server listens only on `http://127.0.0.1:8765`.
 ```text
 kiosk_media/
 ├─ index.html
-├─ kiosk.exe                         # native launcher built from bin/kiosk-launcher.cs
+├─ kiosk.exe                         # normal user entry point
 ├─ assets/
 │  ├─ app.css
 │  ├─ favicon.ico
@@ -29,12 +33,11 @@ kiosk_media/
 │  ├─ simple-keyboard.js             # vendor library
 │  └─ simple-keyboard.css            # vendor library
 ├─ bin/
-│  ├─ launch-kiosk.cmd               # fallback/native-launcher entry point
-│  ├─ launch-kiosk.ps1               # runtime launcher + one-time layout migration
+│  ├─ launch-kiosk.cmd               # native-launcher target + EXE recovery entry point
+│  ├─ launch-kiosk.ps1               # runtime launcher
 │  ├─ kiosk-launcher.cs              # source for kiosk.exe
-│  ├─ build-kiosk-exe.ps1            # builds kiosk.exe
-│  ├─ build-kiosk-exe.cmd            # double-click build wrapper
-│  └─ create-kiosk-shortcut.ps1      # optional Windows shortcut helper
+│  ├─ build-kiosk-exe.ps1            # EXE build implementation
+│  └─ create-kiosk-shortcut.cmd      # creates a Desktop shortcut
 ├─ config/
 │  └─ kiosk-config.example.json      # example only; kiosk-config.json is user state
 ├─ server/
@@ -55,65 +58,43 @@ kiosk_media/
 │     ├─ video-processing.js
 │     └─ keyboard.js                 # app-side on-screen-keyboard behavior
 ├─ media/
-│  ├─ en/ zh/ pt/ es/ fr/
+│  ├─ en/ zh/ pt/ es/ fr/           # local installation media; intentionally not committed
 │  └─ .originals/                    # created when processing replaces media
 ├─ logs/
-├─ tools/
-│  └─ ffmpeg/bin/                    # optional bundled ffmpeg.exe + ffprobe.exe
 └─ .runtime/                         # generated: Firefox profile, PID files, jobs
 ```
 
-The Simple Keyboard files in `assets/` are third-party vendor assets. The kiosk-specific keyboard behavior lives in `src/features/keyboard.js`; these are intentionally separate and should not be merged.
+The Simple Keyboard files in `assets/` are third-party vendor assets. The kiosk-specific keyboard behavior lives in `src/features/keyboard.js`; these are intentionally separate.
 
-`server/media-job.ps1` is also intentionally separate because it is launched as a background process for long-running FFmpeg work.
-
-## v2.1 path cleanup and migration
-
-v2.1 finishes the directory migration started in v2.0:
-
-- favicon references use `assets/favicon.ico` / `assets/favicon.jpg` only;
-- the server entry point is `server/serve-kiosk.ps1`;
-- persistent settings are stored in `config/kiosk-config.json`;
-- Firefox profile, PID files, and video-job state live under `.runtime/`;
-- a bundled FFmpeg install belongs under `tools/ffmpeg/bin/`;
-- the old `media/manifest.js` architecture is removed;
-- the old `bin/generate-media-manifest.ps1` and `bin/ffmpeg-wrapper.ps1` are removed.
-
-On first launch after upgrading, `bin/launch-kiosk.ps1` automatically migrates an existing:
-
-```text
-bin/kiosk-config.json          -> config/kiosk-config.json
-bin/.firefox-kiosk-profile/   -> .runtime/firefox-profile/
-bin/ffmpeg/ or ffmpeg/        -> tools/ffmpeg/
-```
-
-It also removes known obsolete v1/v2 compatibility files and generated manifest/report files. It never removes the language media folders or normal video files.
+`server/media-job.ps1` is intentionally separate because it is launched as a background process for long-running FFmpeg work.
 
 ## Building `kiosk.exe`
 
-Close the kiosk first, then double-click:
+Normally you do not need to build the EXE manually. If `kiosk.exe` is missing, run:
 
 ```text
-bin/build-kiosk-exe.cmd
+bin\launch-kiosk.cmd
 ```
 
-or run:
+It rebuilds the EXE automatically before launching the kiosk.
+
+For a manual rebuild from PowerShell:
 
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\bin\build-kiosk-exe.ps1
 ```
 
-The build script looks for the .NET Framework C# compiler (`csc.exe`) included on most Windows 10/11 installations. If `csc.exe` is not directly available, Windows PowerShell 5.1's `Add-Type` compiler is used as a fallback.
+The build script looks for the .NET Framework C# compiler (`csc.exe`) included on most Windows 10/11 installations. If `csc.exe` is unavailable, Windows PowerShell 5.1's `Add-Type` compiler is used as a fallback.
 
 The build is transactional: it creates `kiosk.new.exe` first and replaces `kiosk.exe` only after compilation succeeds. If the custom icon causes compilation to fail, it retries once without the icon and reports the compiler output if the build still fails.
 
-If neither compiler is available, enable/install .NET Framework 4.x or Visual Studio Build Tools and run the build again.
+To create or refresh the Desktop shortcut, run:
 
-To recreate the optional shortcut after building:
-
-```powershell
-.\bin\create-kiosk-shortcut.ps1
+```text
+bin\create-kiosk-shortcut.cmd
 ```
+
+The shortcut points to the root `kiosk.exe` and uses `assets\favicon.ico` as its icon.
 
 ## Media
 
@@ -126,6 +107,8 @@ media/pt/
 media/es/
 media/fr/
 ```
+
+These installation-specific media files are intentionally ignored by Git because they can be very large.
 
 The browser reads the catalog directly from `GET /api/catalog`. No generated JavaScript manifest is used.
 
@@ -150,11 +133,14 @@ Profiles affect transcoding only. Remux/optimize operations use stream copy.
 
 ## FFmpeg discovery
 
+Video Processing uses the FFmpeg installation already present on the Windows machine.
+
 The kiosk looks for `ffmpeg` and `ffprobe` in this order:
 
 1. system `PATH`
-2. `tools/ffmpeg/bin/`
-3. WinGet Gyan.FFmpeg package directories
+2. WinGet `Gyan.FFmpeg` package directories under `%LOCALAPPDATA%\Microsoft\WinGet\Packages`
+
+FFmpeg is required only for the Video Processing feature; normal video playback does not depend on it.
 
 ## Configuration
 

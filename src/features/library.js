@@ -1,5 +1,5 @@
 import { apiFetch } from '../core/api.js';
-import { cfg, draft, catalog, ui, setCatalog, setActiveCatalogLanguage, migrateLegacyMediaKeys, saveSettingsSoon } from '../core/state.js';
+import { cfg, draft, catalog, ui, setCatalog, setActiveCatalogLanguage, saveSettingsSoon } from '../core/state.js';
 import { $, escHtml, formatDuration, videoTitle, applyViewMode, showToast } from '../core/ui.js';
 import { LANGUAGES, t, tf, setLanguage, applyI18n } from '../core/i18n.js';
 
@@ -35,7 +35,6 @@ function ensureSelectionDefaults() {
 export async function refreshCatalog({ toast = false } = {}) {
   const data = await apiFetch('/api/catalog');
   setCatalog(normalizeServerCatalog(data));
-  const migrated = migrateLegacyMediaKeys();
   ensureSelectionDefaults();
   setActiveCatalogLanguage(cfg.language);
   renderLanguageSwitcher();
@@ -44,7 +43,6 @@ export async function refreshCatalog({ toast = false } = {}) {
     const langs = Object.values(catalog.byLanguage).filter(arr => arr.length).length;
     showToast(total ? (langs > 1 ? tf('videosFoundAcross', { count: total, langs }) : tf('videosFound', { count: total })) : t('noVideosFound'));
   }
-  if (migrated) saveSettingsSoon(0);
   return data;
 }
 

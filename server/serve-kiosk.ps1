@@ -200,7 +200,7 @@ try {
       $path=[Uri]::UnescapeDataString($context.Request.Url.AbsolutePath.TrimStart('/')); $method=$context.Request.HttpMethod.ToUpperInvariant()
       Write-Log ">> $method /$path"
 
-      if ($path -eq 'api/health' -and $method -eq 'GET') { Send-Json $context 200 @{ok=$true;apiVersion=3;appVersion='2.1.0';time=[DateTime]::UtcNow.ToString('o')}; continue }
+      if ($path -eq 'api/health' -and $method -eq 'GET') { Send-Json $context 200 @{ok=$true;apiVersion=3;appVersion='2.2.0';time=[DateTime]::UtcNow.ToString('o')}; continue }
       if ($path -eq 'api/session' -and $method -eq 'GET') { Send-Json $context 200 @{ok=$true;token=$sessionToken}; continue }
       if ($path -eq 'api/catalog' -and $method -eq 'GET') { Send-Json $context 200 (Get-KioskCatalog -RootPath $resolvedRoot); continue }
 

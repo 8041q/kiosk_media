@@ -2,7 +2,7 @@ import { apiFetch } from './api.js';
 
 export const APP = Object.freeze({
   name: 'Exhibition Kiosk',
-  version: '2.1.0',
+  version: '2.2.0',
   buildDate: '2026-09-13',
   license: 'MIT',
   author: 'Made by 8041q (crt_)',
@@ -127,11 +127,6 @@ export function saveSettingsSoon(delay = 350) {
   persistTimer = setTimeout(() => { saveSettings().catch(() => {}); }, delay);
 }
 
-function legacyId(name) {
-  return String(name || '').toLowerCase().replace(/[^a-z0-9.]/g, '_');
-}
-
-
 export function remapMediaId(oldId, newId) {
   if (!oldId || !newId || oldId === newId) return false;
   const apply = target => {
@@ -158,23 +153,4 @@ export function remapMediaId(oldId, newId) {
   const cfgChanged = apply(cfg);
   apply(draft);
   return cfgChanged;
-}
-
-export function migrateLegacyMediaKeys() {
-  let changed = false;
-  for (const video of catalog.all) {
-    const old = legacyId(video.name);
-    const id = video.id || video.src;
-    if (cfg.selectedIds.includes(old) && !cfg.selectedIds.includes(id)) { cfg.selectedIds.push(id); changed = true; }
-    if (cfg.disabledIds.includes(old) && !cfg.disabledIds.includes(id)) { cfg.disabledIds.push(id); changed = true; }
-    if (Object.prototype.hasOwnProperty.call(cfg.videoVolumes, old) && !Object.prototype.hasOwnProperty.call(cfg.videoVolumes, id)) {
-      cfg.videoVolumes[id] = cfg.videoVolumes[old]; changed = true;
-    }
-    const titles = cfg.videoTitles?.[video.language];
-    if (titles && Object.prototype.hasOwnProperty.call(titles, old) && !Object.prototype.hasOwnProperty.call(titles, id)) {
-      titles[id] = titles[old]; changed = true;
-    }
-  }
-  if (changed) resetDraft();
-  return changed;
 }

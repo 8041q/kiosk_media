@@ -65,7 +65,6 @@ function Get-KioskCatalog {
 }
 
 function Resolve-KioskFfmpegTools {
-  param([Parameter(Mandatory=$true)][string]$RootPath)
   if ($script:KioskFfmpegTools) { return $script:KioskFfmpegTools }
 
   $ffmpegCandidates = @()
@@ -78,14 +77,6 @@ function Resolve-KioskFfmpegTools {
     $cmd = Get-Command $name -ErrorAction SilentlyContinue
     if ($cmd -and $cmd.Source) { $ffprobeCandidates += $cmd.Source }
   }
-
-  foreach ($base in @(
-    (Join-Path $RootPath 'tools\ffmpeg\bin')
-  )) {
-    $ffmpegCandidates += (Join-Path $base 'ffmpeg.exe')
-    $ffprobeCandidates += (Join-Path $base 'ffprobe.exe')
-  }
-
   if ($env:LOCALAPPDATA) {
     $wingetRoot = Join-Path $env:LOCALAPPDATA 'Microsoft\WinGet\Packages'
     if (Test-Path -LiteralPath $wingetRoot -PathType Container) {
@@ -100,7 +91,7 @@ function Resolve-KioskFfmpegTools {
   $ffmpeg = $ffmpegCandidates | Where-Object { $_ -and (Test-Path -LiteralPath $_ -PathType Leaf) } | Select-Object -First 1
   $ffprobe = $ffprobeCandidates | Where-Object { $_ -and (Test-Path -LiteralPath $_ -PathType Leaf) } | Select-Object -First 1
   if (-not $ffmpeg -or -not $ffprobe) {
-    throw 'FFmpeg/ffprobe were not found. Install FFmpeg, add it to PATH, or place it under tools\ffmpeg\bin.'
+    throw 'FFmpeg/ffprobe were not found. Install FFmpeg with WinGet or add ffmpeg.exe and ffprobe.exe to PATH.'
   }
   $script:KioskFfmpegTools = [pscustomobject]@{ Ffmpeg = $ffmpeg; Ffprobe = $ffprobe }
   return $script:KioskFfmpegTools
@@ -108,7 +99,7 @@ function Resolve-KioskFfmpegTools {
 
 function Invoke-KioskFfprobe {
   param([Parameter(Mandatory=$true)][string]$RootPath, [Parameter(Mandatory=$true)][string]$FullPath)
-  $tools = Resolve-KioskFfmpegTools -RootPath $RootPath
+  $tools = Resolve-KioskFfmpegTools
   $raw = & $tools.Ffprobe '-v' 'error' '-show_streams' '-show_format' '-print_format' 'json' $FullPath 2>$null | Out-String
   if (-not $raw.Trim()) { throw 'ffprobe returned no metadata.' }
   return $raw | ConvertFrom-Json
@@ -267,7 +258,7 @@ function Invoke-KioskFfmpegProcess {
     [scriptblock]$ProgressCallback=$null,
     [scriptblock]$CancelCheck=$null
   )
-  $tools = Resolve-KioskFfmpegTools -RootPath $RootPath
+  $tools = Resolve-KioskFfmpegTools
   $runtimeDir = Join-Path $RootPath '.runtime\jobs'
   if (-not (Test-Path -LiteralPath $runtimeDir)) { New-Item -ItemType Directory -Path $runtimeDir -Force | Out-Null }
   $token = [Guid]::NewGuid().ToString('N')
