@@ -1,0 +1,13 @@
+{
+  "password": "1234",
+  "accent": "#00BFA5",
+  "lightMode": false,
+  "logoSrc": null,
+  "selectedIds": [],
+  "disabledIds": [],
+  "videoVolumes": {},
+  "videoTitles": {},
+  "language": "en",
+  "viewMode": "cards-medium",
+  "processingProfile": "recommended"
+}

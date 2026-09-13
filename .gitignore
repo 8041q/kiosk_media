@@ -8,11 +8,8 @@ yarn.lock
 .env.local
 .env.*.local
 
-# Kiosk runtime / user state (preserve original locations)
-bin/.kiosk-server.pid
-bin/.kiosk-browser.pid
-bin/.firefox-kiosk-profile/
-bin/kiosk-config.json
+# Kiosk user configuration and runtime state
+config/kiosk-config.json
 .runtime/
 
 # IDE
@@ -26,12 +23,16 @@ bin/kiosk-config.json
 .DS_Store
 Thumbs.db
 
-# Build
+# Build / generated launch artifacts
 dist/
 build/
+kiosk.exe.lnk
+kiosk.new.exe
+
+# Logs
 logs/*
 !logs/.gitkeep
 
-# Media installation content
+# Media installation content and processing backups
 media/*
 !media/.gitkeep

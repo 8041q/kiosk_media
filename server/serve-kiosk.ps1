@@ -9,10 +9,10 @@ $resolvedRoot = (Resolve-Path -LiteralPath $RootPath).Path
 . (Join-Path $resolvedRoot 'server\media.ps1')
 
 $prefix = "http://127.0.0.1:$Port/"
-$configFilePath = Join-Path $resolvedRoot 'bin\kiosk-config.json'
+$configFilePath = Join-Path $resolvedRoot 'config\kiosk-config.json'
 $runtimeDir = Join-Path $resolvedRoot '.runtime'
 $jobsDir = Join-Path $runtimeDir 'jobs'
-$browserPidFilePath = Join-Path $resolvedRoot 'bin\.kiosk-browser.pid'
+$browserPidFilePath = Join-Path $resolvedRoot '.runtime\browser.pid'
 $sessionToken = [Guid]::NewGuid().ToString('N')
 $githubUrl = 'https://github.com/8041q/kiosk_media'
 $issuesUrl = 'https://github.com/8041q/kiosk_media/issues'
@@ -159,7 +159,7 @@ try {
 function Serve-StaticFile {
   param($Context, [string]$RequestPath)
   if ([string]::IsNullOrWhiteSpace($RequestPath)) { $RequestPath='index.html' }
-  $allowedStatic = ($RequestPath -eq 'index.html') -or $RequestPath.StartsWith('assets/') -or $RequestPath.StartsWith('src/') -or $RequestPath.StartsWith('media/') -or ($RequestPath -in @('bin/favicon.ico','bin/favicon.jpg'))
+  $allowedStatic = ($RequestPath -eq 'index.html') -or $RequestPath.StartsWith('assets/') -or $RequestPath.StartsWith('src/') -or $RequestPath.StartsWith('media/')
   if (-not $allowedStatic) { Send-Response $Context 404 'text/plain; charset=utf-8' ([System.Text.Encoding]::UTF8.GetBytes('Not Found')); return }
   $candidate = Join-Path $resolvedRoot ($RequestPath.Replace('/', [System.IO.Path]::DirectorySeparatorChar))
   $full = [System.IO.Path]::GetFullPath($candidate)
@@ -200,7 +200,7 @@ try {
       $path=[Uri]::UnescapeDataString($context.Request.Url.AbsolutePath.TrimStart('/')); $method=$context.Request.HttpMethod.ToUpperInvariant()
       Write-Log ">> $method /$path"
 
-      if ($path -eq 'api/health' -and $method -eq 'GET') { Send-Json $context 200 @{ok=$true;version=2;time=[DateTime]::UtcNow.ToString('o')}; continue }
+      if ($path -eq 'api/health' -and $method -eq 'GET') { Send-Json $context 200 @{ok=$true;apiVersion=3;appVersion='2.1.0';time=[DateTime]::UtcNow.ToString('o')}; continue }
       if ($path -eq 'api/session' -and $method -eq 'GET') { Send-Json $context 200 @{ok=$true;token=$sessionToken}; continue }
       if ($path -eq 'api/catalog' -and $method -eq 'GET') { Send-Json $context 200 (Get-KioskCatalog -RootPath $resolvedRoot); continue }
 

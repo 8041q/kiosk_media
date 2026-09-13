@@ -12,7 +12,6 @@ export const LANGUAGES = [
 
 /**
  * @typedef {Object} UIStrings
- * @property {string} tagline
  * @property {string} back
  * @property {string} adminTitle
  * @property {string} unlock
@@ -23,19 +22,16 @@ export const LANGUAGES = [
  * @property {string} saved
  * @property {string} videos
  * @property {string} appearance
- * @property {string} language
  * @property {string} security
  * @property {string} about
  * @property {string} selectAll
  * @property {string} deselectAll
- * @property {string} scanFolder
  * @property {string} logo
  * @property {string} accentColor
  * @property {string} theme
  * @property {string} dark
  * @property {string} light
  * @property {string} changePw
- * @property {string} volume
  * @property {string} noVideos
  * @property {string} errTitle
  * @property {string} errMsg
@@ -63,7 +59,6 @@ export const LANGUAGES = [
  * @property {string} exit
  * @property {string} exitConfirm
  * @property {string} exiting
- * @property {string} exitStillOpen
  * @property {string} exitFailed
  * @property {string} scan
  * @property {string} scanning
@@ -93,13 +88,13 @@ export const LANGUAGES = [
 /** @type {Object.<string, UIStrings>} */
 export const UI_STRINGS = {
   en: {
-    tagline:'Select a video to watch', back:'Back', adminTitle:'Kiosk Settings',
+     back:'Back', adminTitle:'Kiosk Settings',
     unlock:'Login', save:'Save', return:'Return',
     password:'Password', wrongPw:'Incorrect password — try again.', saved:'Settings saved',
-    videos:'Videos', appearance:'Appearance', language:'Language', security:'Security', about:'About',
-    selectAll:'Select all', deselectAll:'Deselect all', scanFolder:'Scan folder\u2026',
+    videos:'Videos', appearance:'Appearance',  security:'Security', about:'About',
+    selectAll:'Select all', deselectAll:'Deselect all',
     logo:'Logo', accentColor:'Accent Colour', theme:'Theme', dark:'Dark', light:'Light',
-    changePw:'Change Password', volume:'Volume', noVideos:'No videos to display',
+    changePw:'Change Password',  noVideos:'No videos to display',
     errTitle:'Cannot play this video', errMsg:'File missing or codec not supported.', errBtn:'Return to library',
     showOnScreen:'Show on screen',
     openAdminToConfigure:'Open admin settings to configure your video library.',
@@ -116,18 +111,18 @@ export const UI_STRINGS = {
     exit:'Exit',
     exitConfirm:'Exit kiosk now? This will close the kiosk window and stop the local server.',
     exiting:'Exiting...',
-    exitStillOpen:'Exit request sent, but kiosk is still open. Please launch again if needed and retry Exit.',
+
     exitFailed:'Could not exit kiosk. Please try again.',
     scan:'Scan...', scanning:'Scanning...',
     noVideosFound:'No videos found. Check the media folders and scan again.',
     videosFoundAcross:'{count} videos found across {langs} languages', videosFound:'{count} videos found',
     pickImageFile:'Please select an image file.', imageUnder3mb:'Image must be under 3 MB.',
     viewMode:'View Mode', viewCardsMedium:'Card size (medium)', viewCardsLarge:'Cards (larger)', viewCardsSmall:'Cards (smaller)', viewListComfort:'Comfortable list', viewListCompact:'Compact list',
-    videoProcessing:'Video Processing', qualityMode:'Quality Mode', qualityCrf23:'CRF 23 (almost lossless, smaller files)', qualityLossless:'Lossless (larger files)',
-    videoStatus:'Video Status', fixAllVideos:'Fix All Videos', fixVideo:'Fix', fixing:'Fixing...', retry:'Retry',
-    videoAlreadyOk:'Already OK', videoNeedsFix:'Needs Fix', videoFixed:'Fixed', formatConverted:'Converted', videoError:'Error', videoPending:'Pending',
-    processingLog:'Processing Log', videoLang:'Language', videoCodec:'Codec', videoResolution:'Resolution', videoDuration:'Duration', videoSize:'Size',
-    scanNow:'Scan', fixComplete:'Processed {fixed} videos, {errors} errors', fixFailed:'Processing failed', saveFailed:'Could not save settings',
+    videoProcessing:'Video Processing',
+
+
+
+      fixFailed:'Processing failed', saveFailed:'Could not save settings',
     videoProcessingSubtitle:'Analyse the media library, optimize compatible files without quality loss, and transcode only when required.', total:'Total',
     mediaHealth:'Media health', analyzeLibrary:'Analyse library', analyzing:'Analysing...', lastAnalyzed:'Last analysed',
     statusReady:'Ready', statusOptimize:'Optimize', statusTranscode:'Transcode', statusError:'Error',
@@ -137,8 +132,8 @@ export const UI_STRINGS = {
     profileSmallerHelp:'Reduced storage usage (H.264 CRF 24, AAC 128 kbps).',
     filterAll:'All', filterAttention:'Needs attention', filterReady:'Ready', filterErrors:'Errors',
     selectAttention:'Select all needing attention', processSelected:'Process selected', noAttention:'No videos need processing.',
-    recommendedAction:'Recommended action', actionRemux:'Optimize without quality loss', actionTranscode:'Transcode for kiosk compatibility',
-    videoContainer:'Container', videoAudioCodec:'Audio', videoPixelFormat:'Pixel format', technicalLog:'Technical log',
+     actionRemux:'Optimize without quality loss', actionTranscode:'Transcode for kiosk compatibility',
+       technicalLog:'Technical log',
     processingProgress:'Processing', cancelProcessing:'Cancel', processingComplete:'Processing complete', processingCancelled:'Processing cancelled',
 
     aboutEyebrow:'Portable kiosk app', aboutDescription:'Fullscreen media kiosk for exhibitions with multilingual playback, admin controls, and local offline-friendly hosting.',
@@ -147,13 +142,13 @@ export const UI_STRINGS = {
     aboutLinkFailed:'Could not open the link in the default browser.',
   },
   pt: {
-    tagline:'Selecione um vídeo para assistir', back:'Voltar', adminTitle:'Configurações',
+     back:'Voltar', adminTitle:'Configurações',
     unlock:'Login', save:'Salvar', return:'Retornar',
     password:'Senha', wrongPw:'Senha incorreta — tente novamente.', saved:'Configurações salvas',
-    videos:'Vídeos', appearance:'Aparência', language:'Idioma', security:'Segurança', about:'Sobre',
-    selectAll:'Selecionar todos', deselectAll:'Desmarcar todos', scanFolder:'Escanear pasta\u2026',
+    videos:'Vídeos', appearance:'Aparência',  security:'Segurança', about:'Sobre',
+    selectAll:'Selecionar todos', deselectAll:'Desmarcar todos',
     logo:'Logotipo', accentColor:'Cor de Destaque', theme:'Tema', dark:'Escuro', light:'Claro',
-    changePw:'Alterar Senha', volume:'Volume', noVideos:'Nenhum vídeo para exibir',
+    changePw:'Alterar Senha',  noVideos:'Nenhum vídeo para exibir',
     errTitle:'Não foi possível reproduzir', errMsg:'Arquivo ausente ou codec não suportado.', errBtn:'Voltar à biblioteca',
     showOnScreen:'Exibir na tela',
     openAdminToConfigure:'Abra as configurações de administrador para configurar sua biblioteca de vídeos.',
@@ -170,18 +165,18 @@ export const UI_STRINGS = {
     exit:'Sair',
     exitConfirm:'Sair do quiosque agora? Isso fechará a janela do quiosque e interromperá o servidor local.',
     exiting:'Saindo...',
-    exitStillOpen:'O pedido de saída foi enviado, mas o quiosque ainda está aberto. Inicie novamente, se necessário, e tente sair de novo.',
+
     exitFailed:'Não foi possível sair do quiosque. Tente novamente.',
     scan:'Escanear...', scanning:'Escaneando...',
     noVideosFound:'Nenhum vídeo encontrado. Verifique as pastas de mídia e escaneie novamente.',
     videosFoundAcross:'{count} vídeos encontrados em {langs} idiomas', videosFound:'{count} vídeos encontrados',
     pickImageFile:'Selecione um arquivo de imagem.', imageUnder3mb:'A imagem deve ter menos de 3 MB.',
     viewMode:'Modo de visualização', viewCardsMedium:'Cartões (médio)', viewCardsLarge:'Cartões (maiores)', viewCardsSmall:'Cartões (menores)', viewListComfort:'Lista confortável', viewListCompact:'Lista compacta',
-    videoProcessing:'Processamento de Vídeo', qualityMode:'Modo de Qualidade', qualityCrf23:'CRF 23 (quase sem perdas, arquivos menores)', qualityLossless:'Sem perdas (arquivos maiores)',
-    videoStatus:'Status do Vídeo', fixAllVideos:'Corrigir Todos os Vídeos', fixVideo:'Corrigir', fixing:'Corrigindo...', retry:'Tentar novamente',
-    videoAlreadyOk:'Já OK', videoNeedsFix:'Precisa Correção', videoFixed:'Corrigido', formatConverted:'Convertido', videoError:'Erro', videoPending:'Pendente',
-    processingLog:'Log de Processamento', videoLang:'Idioma', videoCodec:'Codec', videoResolution:'Resolução', videoDuration:'Duração', videoSize:'Tamanho',
-    scanNow:'Escanear', fixComplete:'Processados {fixed} vídeos, {errors} erros', fixFailed:'Falha no processamento', saveFailed:'Não foi possível salvar as configurações',
+    videoProcessing:'Processamento de Vídeo',
+
+
+
+      fixFailed:'Falha no processamento', saveFailed:'Não foi possível salvar as configurações',
     videoProcessingSubtitle:'Analise a biblioteca de mídia, otimize arquivos compatíveis sem perda de qualidade e transcodifique apenas quando necessário.', total:'Total',
     mediaHealth:'Estado da mídia', analyzeLibrary:'Analisar biblioteca', analyzing:'Analisando...', lastAnalyzed:'Última análise',
     statusReady:'Pronto', statusOptimize:'Otimizar', statusTranscode:'Transcodificar', statusError:'Erro',
@@ -191,8 +186,8 @@ export const UI_STRINGS = {
     profileSmallerHelp:'Menor uso de armazenamento (H.264 CRF 24, AAC 128 kbps).',
     filterAll:'Todos', filterAttention:'Requer atenção', filterReady:'Prontos', filterErrors:'Erros',
     selectAttention:'Selecionar todos que requerem atenção', processSelected:'Processar selecionados', noAttention:'Nenhum vídeo precisa de processamento.',
-    recommendedAction:'Ação recomendada', actionRemux:'Otimizar sem perda de qualidade', actionTranscode:'Transcodificar para compatibilidade com o quiosque',
-    videoContainer:'Contêiner', videoAudioCodec:'Áudio', videoPixelFormat:'Formato de pixel', technicalLog:'Log técnico',
+     actionRemux:'Otimizar sem perda de qualidade', actionTranscode:'Transcodificar para compatibilidade com o quiosque',
+       technicalLog:'Log técnico',
     processingProgress:'Processando', cancelProcessing:'Cancelar', processingComplete:'Processamento concluído', processingCancelled:'Processamento cancelado',
     aboutEyebrow:'Aplicativo de quiosque portátil', aboutDescription:'Quiosque de mídia em tela cheia para exposições, com reprodução multilíngue, controles administrativos e hospedagem local pronta para uso offline.',
     aboutImageFallback:'Imagem da marca indisponível', aboutVersion:'Versão', aboutBuildDate:'Data da compilação', aboutLicense:'Licença', aboutAuthor:'Autor',
@@ -200,13 +195,13 @@ export const UI_STRINGS = {
     aboutLinkFailed:'Não foi possível abrir o link no navegador padrão.',
   },
   es: {
-    tagline:'Selecciona un video para ver', back:'Volver', adminTitle:'Configuración',
+     back:'Volver', adminTitle:'Configuración',
     unlock:'Iniciar sesión', save:'Guardar', return:'Regresar',
     password:'Contraseña', wrongPw:'Contraseña incorrecta — inténtalo de nuevo.', saved:'Configuración guardada',
-    videos:'Videos', appearance:'Apariencia', language:'Idioma', security:'Seguridad', about:'Acerca de',
-    selectAll:'Seleccionar todo', deselectAll:'Deseleccionar todo', scanFolder:'Escanear carpeta\u2026',
+    videos:'Videos', appearance:'Apariencia',  security:'Seguridad', about:'Acerca de',
+    selectAll:'Seleccionar todo', deselectAll:'Deseleccionar todo',
     logo:'Logotipo', accentColor:'Color de Acento', theme:'Tema', dark:'Oscuro', light:'Claro',
-    changePw:'Cambiar Contraseña', volume:'Volumen', noVideos:'No hay videos',
+    changePw:'Cambiar Contraseña',  noVideos:'No hay videos',
     errTitle:'No se puede reproducir', errMsg:'Archivo no encontrado o códec no compatible.', errBtn:'Volver a la biblioteca',
     showOnScreen:'Mostrar en pantalla',
     openAdminToConfigure:'Abre la configuración de administrador para configurar tu biblioteca de videos.',
@@ -223,18 +218,18 @@ export const UI_STRINGS = {
     exit:'Salir',
     exitConfirm:'¿Salir del kiosco ahora? Esto cerrará la ventana del kiosco y detendrá el servidor local.',
     exiting:'Saliendo...',
-    exitStillOpen:'La solicitud de salida se envió, pero el kiosco sigue abierto. Vuelve a iniciarlo si hace falta e inténtalo de nuevo.',
+
     exitFailed:'No se pudo salir del kiosco. Inténtalo de nuevo.',
     scan:'Escanear...', scanning:'Escaneando...',
     noVideosFound:'No se encontraron videos. Revisa las carpetas multimedia y vuelve a escanear.',
     videosFoundAcross:'{count} videos encontrados en {langs} idiomas', videosFound:'{count} videos encontrados',
     pickImageFile:'Selecciona un archivo de imagen.', imageUnder3mb:'La imagen debe ser menor de 3 MB.',
     viewMode:'Modo de vista', viewCardsMedium:'Tarjetas (medio)', viewCardsLarge:'Tarjetas (más grandes)', viewCardsSmall:'Tarjetas (más pequeñas)', viewListComfort:'Lista cómoda', viewListCompact:'Lista compacta',
-    videoProcessing:'Procesamiento de Video', qualityMode:'Modo de Calidad', qualityCrf23:'CRF 23 (casi sin pérdidas, archivos menores)', qualityLossless:'Sin pérdidas (archivos mayores)',
-    videoStatus:'Estado del Video', fixAllVideos:'Corregir Todos los Videos', fixVideo:'Corregir', fixing:'Corrigiendo...', retry:'Reintentar',
-    videoAlreadyOk:'Ya OK', videoNeedsFix:'Necesita Corrección', videoFixed:'Corregido', formatConverted:'Convertido', videoError:'Error', videoPending:'Pendiente',
-    processingLog:'Registro de Procesamiento', videoLang:'Idioma', videoCodec:'Codec', videoResolution:'Resolución', videoDuration:'Duración', videoSize:'Tamaño',
-    scanNow:'Escanear', fixComplete:'Procesados {fixed} videos, {errors} errores', fixFailed:'Falló el procesamiento', saveFailed:'No se pudo guardar la configuración',
+    videoProcessing:'Procesamiento de Video',
+
+
+
+      fixFailed:'Falló el procesamiento', saveFailed:'No se pudo guardar la configuración',
     videoProcessingSubtitle:'Analiza la biblioteca multimedia, optimiza archivos compatibles sin pérdida de calidad y transcodifica solo cuando sea necesario.', total:'Total',
     mediaHealth:'Estado multimedia', analyzeLibrary:'Analizar biblioteca', analyzing:'Analizando...', lastAnalyzed:'Último análisis',
     statusReady:'Listo', statusOptimize:'Optimizar', statusTranscode:'Transcodificar', statusError:'Error',
@@ -244,8 +239,8 @@ export const UI_STRINGS = {
     profileSmallerHelp:'Menor uso de almacenamiento (H.264 CRF 24, AAC 128 kbps).',
     filterAll:'Todos', filterAttention:'Requiere atención', filterReady:'Listos', filterErrors:'Errores',
     selectAttention:'Seleccionar todos los que requieren atención', processSelected:'Procesar seleccionados', noAttention:'Ningún video necesita procesamiento.',
-    recommendedAction:'Acción recomendada', actionRemux:'Optimizar sin pérdida de calidad', actionTranscode:'Transcodificar para compatibilidad con el kiosco',
-    videoContainer:'Contenedor', videoAudioCodec:'Audio', videoPixelFormat:'Formato de píxel', technicalLog:'Registro técnico',
+     actionRemux:'Optimizar sin pérdida de calidad', actionTranscode:'Transcodificar para compatibilidad con el kiosco',
+       technicalLog:'Registro técnico',
     processingProgress:'Procesando', cancelProcessing:'Cancelar', processingComplete:'Procesamiento completado', processingCancelled:'Procesamiento cancelado',
     aboutEyebrow:'Aplicación de kiosco portátil', aboutDescription:'Kiosco multimedia de pantalla completa para exposiciones, con reproducción multilingüe, controles administrativos y alojamiento local compatible con uso sin conexión.',
     aboutImageFallback:'Imagen de marca no disponible', aboutVersion:'Versión', aboutBuildDate:'Fecha de compilación', aboutLicense:'Licencia', aboutAuthor:'Autor',
@@ -253,13 +248,13 @@ export const UI_STRINGS = {
     aboutLinkFailed:'No se pudo abrir el enlace en el navegador predeterminado.',
   },
   fr: {
-    tagline:'Sélectionnez une vidéo à regarder', back:'Retour', adminTitle:'Paramètres',
+     back:'Retour', adminTitle:'Paramètres',
     unlock:'Se connecter', save:'Enregistrer', return:'Retour',
     password:'Mot de passe', wrongPw:'Mot de passe incorrect — réessayez.', saved:'Paramètres enregistrés',
-    videos:'Vidéos', appearance:'Apparence', language:'Langue', security:'Sécurité', about:'À propos',
-    selectAll:'Tout sélectionner', deselectAll:'Tout désélectionner', scanFolder:'Scanner le dossier\u2026',
+    videos:'Vidéos', appearance:'Apparence',  security:'Sécurité', about:'À propos',
+    selectAll:'Tout sélectionner', deselectAll:'Tout désélectionner',
     logo:'Logo', accentColor:"Couleur d'Accentuation", theme:'Thème', dark:'Sombre', light:'Clair',
-    changePw:'Changer de Mot de Passe', volume:'Volume', noVideos:'Aucune vidéo à afficher',
+    changePw:'Changer de Mot de Passe',  noVideos:'Aucune vidéo à afficher',
     errTitle:'Impossible de lire', errMsg:'Fichier manquant ou codec non supporté.', errBtn:'Retour à la bibliothèque',
     showOnScreen:'Afficher à l\'écran',
     openAdminToConfigure:'Ouvrez les paramètres admin pour configurer votre vidéothèque.',
@@ -276,18 +271,18 @@ export const UI_STRINGS = {
     exit:'Quitter',
     exitConfirm:'Quitter le kiosque maintenant ? Cela fermera la fenêtre du kiosque et arrêtera le serveur local.',
     exiting:'Fermeture...',
-    exitStillOpen:'La demande de fermeture a été envoyée, mais le kiosque est toujours ouvert. Relancez si nécessaire puis réessayez.',
+
     exitFailed:'Impossible de quitter le kiosque. Veuillez réessayer.',
     scan:'Scanner...', scanning:'Analyse...',
     noVideosFound:'Aucune vidéo trouvée. Vérifiez les dossiers multimédias et relancez l’analyse.',
     videosFoundAcross:'{count} vidéos trouvées dans {langs} langues', videosFound:'{count} vidéos trouvées',
     pickImageFile:'Veuillez sélectionner un fichier image.', imageUnder3mb:'L\'image doit faire moins de 3 Mo.',
     viewMode:'Mode d\'affichage', viewCardsMedium:'Cartes (moyen)', viewCardsLarge:'Cartes (plus grandes)', viewCardsSmall:'Cartes (plus petites)', viewListComfort:'Liste confortable', viewListCompact:'Liste compacte',
-    videoProcessing:'Traitement Vidéo', qualityMode:'Mode de Qualité', qualityCrf23:'CRF 23 (quasi sans pertes, fichiers plus petits)', qualityLossless:'Sans pertes (fichiers plus gros)',
-    videoStatus:'État de la Vidéo', fixAllVideos:'Corriger Toutes les Vidéos', fixVideo:'Corriger', fixing:'Correction...', retry:'Réessayer',
-    videoAlreadyOk:'Déjà OK', videoNeedsFix:'Nécessite Correction', videoFixed:'Corrigé', formatConverted:'Converti', videoError:'Erreur', videoPending:'En Attente',
-    processingLog:'Journal de Traitement', videoLang:'Langue', videoCodec:'Codec', videoResolution:'Résolution', videoDuration:'Durée', videoSize:'Taille',
-    scanNow:'Scanner', fixComplete:'{fixed} vidéos traitées, {errors} erreurs', fixFailed:'Échec du traitement', saveFailed:'Impossible d’enregistrer les paramètres',
+    videoProcessing:'Traitement Vidéo',
+
+
+
+      fixFailed:'Échec du traitement', saveFailed:'Impossible d’enregistrer les paramètres',
     videoProcessingSubtitle:'Analysez la médiathèque, optimisez les fichiers compatibles sans perte de qualité et transcodez uniquement si nécessaire.', total:'Total',
     mediaHealth:'État des médias', analyzeLibrary:'Analyser la médiathèque', analyzing:'Analyse...', lastAnalyzed:'Dernière analyse',
     statusReady:'Prêt', statusOptimize:'Optimiser', statusTranscode:'Transcoder', statusError:'Erreur',
@@ -297,8 +292,8 @@ export const UI_STRINGS = {
     profileSmallerHelp:'Utilisation du stockage réduite (H.264 CRF 24, AAC 128 kbps).',
     filterAll:'Tous', filterAttention:'À traiter', filterReady:'Prêts', filterErrors:'Erreurs',
     selectAttention:'Sélectionner tous les éléments à traiter', processSelected:'Traiter la sélection', noAttention:'Aucune vidéo ne nécessite de traitement.',
-    recommendedAction:'Action recommandée', actionRemux:'Optimiser sans perte de qualité', actionTranscode:'Transcoder pour la compatibilité du kiosque',
-    videoContainer:'Conteneur', videoAudioCodec:'Audio', videoPixelFormat:'Format de pixel', technicalLog:'Journal technique',
+     actionRemux:'Optimiser sans perte de qualité', actionTranscode:'Transcoder pour la compatibilité du kiosque',
+       technicalLog:'Journal technique',
     processingProgress:'Traitement', cancelProcessing:'Annuler', processingComplete:'Traitement terminé', processingCancelled:'Traitement annulé',
     aboutEyebrow:'Application kiosque portable', aboutDescription:'Kiosque multimédia plein écran pour expositions, avec lecture multilingue, contrôles d\'administration et hébergement local compatible hors ligne.',
     aboutImageFallback:'Image de marque indisponible', aboutVersion:'Version', aboutBuildDate:'Date de build', aboutLicense:'Licence', aboutAuthor:'Auteur',
@@ -306,13 +301,13 @@ export const UI_STRINGS = {
     aboutLinkFailed:'Impossible d\'ouvrir le lien dans le navigateur par défaut.',
   },
   zh: {
-    tagline:'选择视频观看', back:'返回', adminTitle:'展台设置',
+     back:'返回', adminTitle:'展台设置',
     unlock:'登录', save:'保存', return:'返回',
     password:'密码', wrongPw:'密码错误，请重试。', saved:'设置已保存',
-    videos:'视频', appearance:'外观', language:'语言', security:'安全', about:'关于',
-    selectAll:'全选', deselectAll:'取消全选', scanFolder:'扫描文件夹\u2026',
+    videos:'视频', appearance:'外观',  security:'安全', about:'关于',
+    selectAll:'全选', deselectAll:'取消全选',
     logo:'标志', accentColor:'强调色', theme:'主题', dark:'深色', light:'浅色',
-    changePw:'修改密码', volume:'音量', noVideos:'没有可显示的视频',
+    changePw:'修改密码',  noVideos:'没有可显示的视频',
     errTitle:'无法播放视频', errMsg:'文件缺失或不支持的编解码器。', errBtn:'返回库',
     showOnScreen:'在屏幕上显示',
     openAdminToConfigure:'打开管理员设置以配置视频库。',
@@ -329,18 +324,18 @@ export const UI_STRINGS = {
     exit:'退出',
     exitConfirm:'现在退出展台吗？这将关闭展台窗口并停止本地服务器。',
     exiting:'正在退出...',
-    exitStillOpen:'已发送退出请求，但展台仍保持打开。如有需要，请重新启动后再次退出。',
+
     exitFailed:'无法退出展台，请重试。',
     scan:'扫描...', scanning:'正在扫描...',
     noVideosFound:'未找到视频。请检查媒体文件夹后重新扫描。',
     videosFoundAcross:'在 {langs} 种语言中找到 {count} 个视频', videosFound:'找到 {count} 个视频',
     pickImageFile:'请选择图像文件。', imageUnder3mb:'图像大小必须小于 3 MB。',
     viewMode:'视图模式', viewCardsMedium:'卡片（中等的）', viewCardsLarge:'卡片（更大）', viewCardsSmall:'卡片（更小）', viewListComfort:'舒适列表', viewListCompact:'紧凑列表',
-    videoProcessing:'视频处理', qualityMode:'质量模式', qualityCrf23:'CRF 23 (近无损, 文件较小)', qualityLossless:'无损 (文件较大)',
-    videoStatus:'视频状态', fixAllVideos:'修复所有视频', fixVideo:'修复', fixing:'修复中...', retry:'重试',
-    videoAlreadyOk:'已正常', videoNeedsFix:'需修复', videoFixed:'已修复', formatConverted:'已转换', videoError:'错误', videoPending:'待处理',
-    processingLog:'处理日志', videoLang:'语言', videoCodec:'编码', videoResolution:'分辨率', videoDuration:'时长', videoSize:'大小',
-    scanNow:'扫描', fixComplete:'已处理 {fixed} 个视频，{errors} 个错误', fixFailed:'处理失败', saveFailed:'无法保存设置',
+    videoProcessing:'视频处理',
+
+
+
+      fixFailed:'处理失败', saveFailed:'无法保存设置',
     videoProcessingSubtitle:'分析媒体库，无损优化兼容文件，仅在必要时进行转码。', total:'总数',
     mediaHealth:'媒体状态', analyzeLibrary:'分析媒体库', analyzing:'正在分析...', lastAnalyzed:'上次分析',
     statusReady:'就绪', statusOptimize:'优化', statusTranscode:'转码', statusError:'错误',
@@ -350,8 +345,8 @@ export const UI_STRINGS = {
     profileSmallerHelp:'减少存储占用（H.264 CRF 24，AAC 128 kbps）。',
     filterAll:'全部', filterAttention:'需要处理', filterReady:'就绪', filterErrors:'错误',
     selectAttention:'选择所有需要处理的视频', processSelected:'处理所选视频', noAttention:'没有视频需要处理。',
-    recommendedAction:'建议操作', actionRemux:'无损优化', actionTranscode:'转码以兼容展台',
-    videoContainer:'容器', videoAudioCodec:'音频', videoPixelFormat:'像素格式', technicalLog:'技术日志',
+     actionRemux:'无损优化', actionTranscode:'转码以兼容展台',
+       technicalLog:'技术日志',
     processingProgress:'处理中', cancelProcessing:'取消', processingComplete:'处理完成', processingCancelled:'处理已取消',
     aboutEyebrow:'便携式展台应用', aboutDescription:'适用于展览的全屏媒体展台，支持多语言播放、管理控制以及适合离线使用的本地主机。',
     aboutImageFallback:'品牌图片不可用', aboutVersion:'版本', aboutBuildDate:'构建日期', aboutLicense:'许可证', aboutAuthor:'作者',

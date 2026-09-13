@@ -80,9 +80,7 @@ function Resolve-KioskFfmpegTools {
   }
 
   foreach ($base in @(
-    (Join-Path $RootPath 'tools\ffmpeg\bin'),
-    (Join-Path $RootPath 'ffmpeg\bin'),
-    (Join-Path $RootPath 'bin\ffmpeg\bin')
+    (Join-Path $RootPath 'tools\ffmpeg\bin')
   )) {
     $ffmpegCandidates += (Join-Path $base 'ffmpeg.exe')
     $ffprobeCandidates += (Join-Path $base 'ffprobe.exe')

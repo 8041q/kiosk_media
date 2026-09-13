@@ -101,7 +101,7 @@ function resolveImageSource(candidates, preferred) {
 }
 
 const LOGO_CANDIDATES = ['assets/logo.png', 'assets/logo.jpg', 'assets/logo.svg'];
-const ABOUT_CANDIDATES = ['assets/favicon.jpg', 'bin/favicon.jpg'];
+const ABOUT_CANDIDATES = ['assets/favicon.jpg', 'assets/favicon.ico'];
 
 export async function applyLogo(src) {
   const main = $('main-logo');

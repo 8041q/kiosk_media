@@ -2,8 +2,8 @@ import { apiFetch } from './api.js';
 
 export const APP = Object.freeze({
   name: 'Exhibition Kiosk',
-  version: '2.0.0',
-  buildDate: '2026-09-12',
+  version: '2.1.0',
+  buildDate: '2026-09-13',
   license: 'MIT',
   author: 'Made by 8041q (crt_)',
   githubUrl: 'https://github.com/8041q/kiosk_media',
