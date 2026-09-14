@@ -90,6 +90,12 @@ body #tile-grid.view-cards-small { --tile-gap: 24px; }
 body #tile-grid.view-cards-medium { --tile-gap: 30px; }
 body #tile-grid.view-cards-large { --tile-gap: 38px; }
 
+body #tile-grid.view-cards-small,
+body #tile-grid.view-cards-medium,
+body #tile-grid.view-cards-large {
+  align-content: center;
+}
+
 body #tile-grid .tile,
 body #tile-grid .tile:hover,
 body #tile-grid .tile:focus,

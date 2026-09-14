@@ -122,7 +122,7 @@ export const UI_STRINGS = {
     noVideosFound:'No videos found. Check the media folders and scan again.',
     videosFoundAcross:'{count} videos found across {langs} languages', videosFound:'{count} videos found',
     pickImageFile:'Please select an image file.', imageUnder3mb:'Image must be under 3 MB.',
-    viewMode:'View Mode', viewCardsMedium:'Card size (medium)', viewCardsLarge:'Cards (larger)', viewCardsSmall:'Cards (smaller)', viewListComfort:'Comfortable list', viewListCompact:'Compact list',
+    viewMode:'View Mode', viewCardsMedium:'Cards (medium)', viewCardsLarge:'Cards (larger)', viewCardsSmall:'Cards (smaller)', viewListComfort:'Comfortable list', viewListCompact:'Compact list',
     videoProcessing:'Video Processing',
 
 
