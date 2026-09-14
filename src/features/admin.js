@@ -3,7 +3,7 @@ import { cfg, draft, catalog, ui, resetDraft, commitDraft, saveSettings } from '
 import { $, escHtml, showToast, applyAccent, applyTheme, applyViewMode, applyLogo, refreshAboutPanel, showScreen } from '../core/ui.js';
 import { LANGUAGES, t, applyI18n } from '../core/i18n.js';
 import { refreshCatalog, renderMainScreen, queueMetaVisible, clearPendingMeta, bindThumbImage, renderLanguageSwitcher } from './library.js';
-import { hideOnScreenKeyboard, prepareOnScreenKeyboardInput } from './keyboard.js';
+import { hideOnScreenKeyboard, prepareOnScreenKeyboardInput } from './keyboard.js?v=20260914-2';
 
 let wired = false;
 const LOGO_CANDIDATES = ['assets/logo.png', 'assets/logo.jpg', 'assets/logo.svg'];
@@ -80,7 +80,7 @@ function renderVideoAdminGrid() {
   videos.forEach(video => {
     const enabled = selected.has(video.id);
     const card = document.createElement('div'); card.className = `vid-admin-card${enabled ? ' enabled' : ''}`; card.dataset.id = video.id;
-    card.innerHTML = `<div class="vac-thumb"><div class="vac-thumb-shimmer"></div><img alt="${escHtml(video.title)}"></div><div class="vac-body"><div class="vac-toggle-row"><label class="toggle"><input type="checkbox" class="vac-enabled-cb" ${enabled ? 'checked' : ''}><div class="toggle-track"></div><div class="toggle-knob"></div></label><span class="vac-toggle-lbl">${escHtml(t('showOnScreen'))}</span></div><div class="field" style="margin-top:6px"><label style="font-size:.72rem;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:.07em">${escHtml(t('displayName'))}</label><input type="text" class="vac-name-input" value="${escHtml(langTitles[video.id] || video.title)}" placeholder="${escHtml(video.title)}" autocomplete="off" inputmode="none" readonly data-osk-custom="true"></div></div>`;
+    card.innerHTML = `<div class="vac-thumb"><div class="vac-thumb-shimmer"></div><img alt="${escHtml(video.title)}"></div><div class="vac-body"><div class="vac-toggle-row"><label class="toggle"><input type="checkbox" class="vac-enabled-cb" ${enabled ? 'checked' : ''}><div class="toggle-track"></div><div class="toggle-knob"></div></label><span class="vac-toggle-lbl">${escHtml(t('showOnScreen'))}</span></div><div class="field" style="margin-top:6px"><label style="font-size:.72rem;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:.07em">${escHtml(t('displayName'))}</label><input type="text" class="vac-name-input" value="${escHtml(langTitles[video.id] || video.title)}" placeholder="${escHtml(video.title)}" autocomplete="off" inputmode="none"></div></div>`;
     const img = card.querySelector('img');
     const shimmer = card.querySelector('.vac-thumb-shimmer');
     queueMetaVisible(card, video, url => bindThumbImage(img, shimmer, url));

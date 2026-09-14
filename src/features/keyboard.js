@@ -50,15 +50,12 @@ function findOskInputTarget(target) {
   return shouldUseOsk(hit) ? hit : null;
 }
 
-function isCustomOnlyInput(el) {
-  return el instanceof HTMLInputElement && el.dataset.oskCustom === 'true';
-}
 
 function shouldUseOsk(el) {
   if (!(el instanceof HTMLInputElement)) return false;
   const type = (el.type || '').toLowerCase();
   const editableType = type === 'text' || type === 'password';
-  return editableType && !el.disabled && (!el.readOnly || isCustomOnlyInput(el));
+  return editableType && !el.disabled && !el.readOnly;
 }
 
 function isPinInput(el) {
@@ -78,7 +75,6 @@ function suppressNativeKeyboard(el) {
 export function prepareOnScreenKeyboardInput(el) {
   if (!shouldUseOsk(el)) return;
   suppressNativeKeyboard(el);
-  if (isCustomOnlyInput(el)) el.readOnly = true;
 }
 
 export function forceNumericValue(el) {
@@ -166,11 +162,6 @@ export function initKeyboard() {
     const input = findOskInputTarget(e.target);
     if (!input) return;
     suppressNativeKeyboard(input);
-
-    // Custom-only fields remain readonly to the browser at all times.
-    // This prevents the device/OS keyboard from being summoned while still
-    // allowing SimpleKeyboard to update input.value programmatically.
-    if (isCustomOnlyInput(input)) e.preventDefault();
 
     if (document.activeElement !== input) {
       try { input.focus({ preventScroll: true }); } catch (_) { input.focus(); }

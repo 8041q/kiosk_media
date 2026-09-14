@@ -20,7 +20,7 @@ export function showToast(message, ms = 3200) {
 
 export function formatDuration(seconds) {
   const value = Number(seconds);
-  if (!Number.isFinite(value) || value <= 0) return '—';
+  if (!Number.isFinite(value) || value <= 0) return '-';
   const h = Math.floor(value / 3600);
   const m = Math.floor((value % 3600) / 60);
   const s = Math.floor(value % 60);
@@ -29,7 +29,7 @@ export function formatDuration(seconds) {
 
 export function formatBytes(bytes) {
   let value = Number(bytes);
-  if (!Number.isFinite(value) || value <= 0) return '—';
+  if (!Number.isFinite(value) || value <= 0) return '-';
   const units = ['B', 'KB', 'MB', 'GB', 'TB'];
   let i = 0;
   while (value >= 1024 && i < units.length - 1) { value /= 1024; i += 1; }

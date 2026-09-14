@@ -95,7 +95,7 @@ export const UI_STRINGS = {
   en: {
      back:'Back', adminTitle:'Kiosk Settings',
     unlock:'Login', save:'Save', return:'Return',
-    password:'Password', wrongPw:'Incorrect password — try again.', saved:'Settings saved',
+    password:'Password', wrongPw:'Incorrect password - try again.', saved:'Settings saved',
     videos:'Videos', appearance:'Appearance',  security:'Security', about:'About',
     selectAll:'Select all', deselectAll:'Deselect all',
     logo:'Logo', accentColor:'Accent Colour', theme:'Theme', dark:'Dark', light:'Light',
@@ -150,7 +150,7 @@ export const UI_STRINGS = {
   pt: {
      back:'Voltar', adminTitle:'Configurações',
     unlock:'Login', save:'Salvar', return:'Retornar',
-    password:'Senha', wrongPw:'Senha incorreta — tente novamente.', saved:'Configurações salvas',
+    password:'Senha', wrongPw:'Senha incorreta - tente novamente.', saved:'Configurações salvas',
     videos:'Vídeos', appearance:'Aparência',  security:'Segurança', about:'Sobre',
     selectAll:'Selecionar todos', deselectAll:'Desmarcar todos',
     logo:'Logotipo', accentColor:'Cor de Destaque', theme:'Tema', dark:'Escuro', light:'Claro',
@@ -204,7 +204,7 @@ export const UI_STRINGS = {
   es: {
      back:'Volver', adminTitle:'Configuración',
     unlock:'Iniciar sesión', save:'Guardar', return:'Regresar',
-    password:'Contraseña', wrongPw:'Contraseña incorrecta — inténtalo de nuevo.', saved:'Configuración guardada',
+    password:'Contraseña', wrongPw:'Contraseña incorrecta - inténtalo de nuevo.', saved:'Configuración guardada',
     videos:'Videos', appearance:'Apariencia',  security:'Seguridad', about:'Acerca de',
     selectAll:'Seleccionar todo', deselectAll:'Deseleccionar todo',
     logo:'Logotipo', accentColor:'Color de Acento', theme:'Tema', dark:'Oscuro', light:'Claro',
@@ -258,7 +258,7 @@ export const UI_STRINGS = {
   fr: {
      back:'Retour', adminTitle:'Paramètres',
     unlock:'Se connecter', save:'Enregistrer', return:'Retour',
-    password:'Mot de passe', wrongPw:'Mot de passe incorrect — réessayez.', saved:'Paramètres enregistrés',
+    password:'Mot de passe', wrongPw:'Mot de passe incorrect - réessayez.', saved:'Paramètres enregistrés',
     videos:'Vidéos', appearance:'Apparence',  security:'Sécurité', about:'À propos',
     selectAll:'Tout sélectionner', deselectAll:'Tout désélectionner',
     logo:'Logo', accentColor:"Couleur d'Accentuation", theme:'Thème', dark:'Sombre', light:'Clair',

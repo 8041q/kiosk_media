@@ -27,7 +27,7 @@ function statusLabel(status) {
 }
 
 function actionLabel(action) {
-  return action === 'remux' ? t('actionRemux') : action === 'transcode' ? t('actionTranscode') : '—';
+  return action === 'remux' ? t('actionRemux') : action === 'transcode' ? t('actionTranscode') : '-';
 }
 
 function isAttention(item) {
@@ -92,8 +92,8 @@ function renderList() {
   grid.innerHTML = rows.map(item => {
     const processable = isAttention(item);
     const included = processable && selected.has(item.src);
-    const codec = [item.videoCodec || '—', item.audioCodec || '—'].join(' / ');
-    const dimensions = item.width && item.height ? `${item.width}×${item.height}` : '—';
+    const codec = [item.videoCodec || '-', item.audioCodec || '-'].join(' / ');
+    const dimensions = item.width && item.height ? `${item.width}×${item.height}` : '-';
     const action = processable ? actionLabel(item.action) : '';
     let actionHtml = '';
 
@@ -110,7 +110,7 @@ function renderList() {
     return `<article class="vp-row vp-${escHtml(item.status)}" data-src="${escHtml(item.src)}">
       <div class="vp-main-cell">
         <div class="vp-file-line"><strong title="${escHtml(item.src)}">${escHtml(item.name)}</strong><span class="vp-badge ${escHtml(item.status)}">${escHtml(statusLabel(item.status))}</span></div>
-        <div class="vp-meta-line"><span>${escHtml(item.language?.toUpperCase() || '—')}</span><span>${escHtml(codec)}</span><span>${escHtml(dimensions)}</span><span>${escHtml(formatBytes(item.size))}</span><span>${escHtml(formatDuration(item.duration))}</span></div>
+        <div class="vp-meta-line"><span>${escHtml(item.language?.toUpperCase() || '-')}</span><span>${escHtml(codec)}</span><span>${escHtml(dimensions)}</span><span>${escHtml(formatBytes(item.size))}</span><span>${escHtml(formatDuration(item.duration))}</span></div>
         <div class="vp-reason">${escHtml(item.reason || '')}</div>
       </div>
       <div class="vp-action-cell">${actionHtml}</div>

@@ -1,0 +1,497 @@
+/* Museum Minimal - alternate visual layer
+   Remove this stylesheet (and the body.museum class) to return to the base theme. */
+
+body.museum {
+  --radius-sm: 3px;
+  --radius: 5px;
+  --radius-lg: 7px;
+  --museum-line: color-mix(in srgb, var(--text) 13%, transparent);
+  --museum-line-soft: color-mix(in srgb, var(--text) 8%, transparent);
+  --museum-muted: color-mix(in srgb, var(--text) 58%, transparent);
+  --museum-active: color-mix(in srgb, var(--accent) 14%, var(--surface));
+  background: var(--bg);
+  letter-spacing: 0;
+}
+
+/* Shared controls: flatter, quieter, touch-first. */
+body.museum .btn {
+  min-height: 44px;
+  border-radius: 4px;
+  padding: 0.68em 1.15em;
+  box-shadow: none;
+  transition: background-color .12s ease, opacity .12s ease;
+}
+body.museum .btn:hover { opacity: 1; }
+body.museum .btn:active { opacity: .72; }
+body.museum .btn-surface,
+body.museum .btn-ghost {
+  border-color: var(--museum-line);
+  box-shadow: none;
+}
+body.museum .btn-surface { background: var(--surface); }
+body.museum .btn-surface:hover,
+body.museum .btn-ghost:hover { background: var(--surface2); }
+body.museum :focus,
+body.museum :focus-visible,
+body.museum input:focus,
+body.museum select:focus,
+body.museum button:focus,
+body.museum button:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+/* Visitor library: the media is the interface. */
+body.museum #main-header {
+  height: 76px;
+  padding: 0 clamp(24px, 3vw, 48px);
+  background: var(--bg);
+  border-bottom: 1px solid var(--museum-line-soft);
+}
+body.museum #main-logo { max-height: 46px; }
+body.museum #lang-select {
+  width: 48px;
+  min-width: 48px;
+  height: 48px;
+  border-radius: 5px;
+  background: transparent;
+  border-color: var(--museum-line);
+  color: var(--text-sub);
+}
+body.museum #lang-select:hover { background: transparent; color: var(--text); }
+body.museum #lang-menu {
+  top: calc(100% + 8px);
+  min-width: 190px;
+  padding: 4px;
+  border-radius: 5px;
+  background: var(--surface);
+  border-color: var(--museum-line);
+  box-shadow: 0 14px 34px rgba(0,0,0,.22);
+}
+body.museum .lang-menu-item {
+  min-height: 52px;
+  border-radius: 3px;
+  border: 0;
+  padding: 0 16px;
+  font-weight: 600;
+}
+body.museum .lang-menu-item:hover,
+body.museum .lang-menu-item:focus { background: var(--surface2); border: 0; }
+body.museum .lang-menu-item.active { background: var(--museum-active); border: 0; }
+
+body.museum #tile-grid {
+  padding: clamp(24px, 3.2vw, 52px);
+  gap: clamp(22px, 2.25vw, 38px) clamp(18px, 2vw, 32px);
+  justify-content: center;
+  align-content: start;
+  border-top: 0;
+}
+body.museum #tile-grid.view-cards-small { --tile-gap: 24px; }
+body.museum #tile-grid.view-cards-medium { --tile-gap: 30px; }
+body.museum #tile-grid.view-cards-large { --tile-gap: 38px; }
+
+body.museum .tile,
+body.museum .tile:hover,
+body.museum .tile:focus,
+body.museum .tile:focus-visible,
+body.museum .tile.kfocus {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  transform: none;
+  transition: none;
+  overflow: visible;
+}
+body.museum .tile-thumb {
+  overflow: hidden;
+  border-radius: 4px;
+  border: 1px solid var(--museum-line-soft);
+  background: var(--surface);
+}
+body.museum .tile-thumb img { transition: opacity .18s ease; transform: none !important; }
+body.museum .tile-play-overlay,
+body.museum .tile:hover .tile-play-overlay,
+body.museum .tile.kfocus .tile-play-overlay { display: none; opacity: 0; }
+body.museum .tile-badge { display: none !important; }
+body.museum .tile-meta,
+body.museum #tile-grid.view-list-comfort .tile-meta,
+body.museum #tile-grid.view-list-compact .tile-meta {
+  display: flex;
+  flex-direction: row;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 10px 2px 0;
+  background: transparent;
+}
+body.museum .tile-title,
+body.museum #tile-grid.view-list-comfort .tile-title,
+body.museum #tile-grid.view-list-compact .tile-title {
+  min-width: 0;
+  margin: 0;
+  color: var(--text);
+  font-size: .96rem;
+  font-weight: 620;
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+body.museum .tile-dur,
+body.museum #tile-grid.view-list-comfort .tile-dur,
+body.museum #tile-grid.view-list-compact .tile-dur {
+  flex: 0 0 auto;
+  color: var(--museum-muted);
+  font-size: .78rem;
+  font-weight: 550;
+  font-variant-numeric: tabular-nums;
+}
+body.museum .tile-loader {
+  animation-duration: 2.4s;
+  opacity: .7;
+}
+body.museum .fade-up { animation: none; }
+body.museum #admin-corner {
+  width: 38px;
+  height: 38px;
+  right: 18px;
+  bottom: 18px;
+  border-radius: 4px;
+  background: var(--bg);
+  border-color: var(--museum-line);
+  opacity: .18;
+}
+body.museum #admin-corner:hover { opacity: .55; }
+
+/* List modes remain functional, but without card chrome. */
+body.museum #tile-grid.view-list-comfort,
+body.museum #tile-grid.view-list-compact { gap: 20px 34px; }
+body.museum #tile-grid.view-list-comfort .tile,
+body.museum #tile-grid.view-list-compact .tile { gap: 16px; }
+body.museum #tile-grid.view-list-comfort .tile-thumb,
+body.museum #tile-grid.view-list-compact .tile-thumb { border-radius: 3px; }
+
+/* Player: preserve layout, remove expensive glass effects. */
+body.museum #player-back,
+body.museum .player-transport-btn,
+body.museum #player-vol-wrap {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  box-shadow: none;
+}
+body.museum #player-back,
+body.museum .player-transport-btn { border-radius: 5px; }
+body.museum #player-vol-wrap { border-radius: 5px; }
+
+/* Admin shell: equipment-panel rather than dashboard. */
+body.museum #screen-admin { background: var(--bg); }
+body.museum .admin-sidebar {
+  width: 248px;
+  background: var(--bg);
+  border-right: 1px solid var(--museum-line);
+}
+body.museum .sidebar-header {
+  padding: 30px 24px 22px;
+  border-bottom: 1px solid var(--museum-line-soft);
+}
+body.museum .sidebar-header h2 {
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: .02em;
+}
+body.museum .sidebar-nav { gap: 2px; padding: 16px 12px; }
+body.museum .snav-btn {
+  min-height: 46px;
+  padding: 11px 13px;
+  border-radius: 4px;
+  color: var(--text-sub);
+  font-size: .92rem;
+  font-weight: 580;
+}
+body.museum .snav-btn:hover { background: var(--surface); color: var(--text); }
+body.museum .snav-btn.active {
+  background: var(--surface2);
+  color: var(--text);
+  box-shadow: none;
+}
+body.museum .sidebar-footer {
+  padding: 14px 12px 18px;
+  border-top-color: var(--museum-line-soft);
+}
+body.museum .admin-main {
+  padding: 42px clamp(32px, 4vw, 68px) 76px;
+  background: var(--bg);
+}
+body.museum .admin-topbar { margin-bottom: 28px; }
+body.museum .sec-title {
+  margin-bottom: 30px;
+  font-size: 1.55rem;
+  font-weight: 650;
+  letter-spacing: -.025em;
+}
+body.museum .setting-group { margin-bottom: 42px; }
+body.museum .setting-label,
+body.museum .setting-label-inline {
+  color: var(--text-sub);
+  font-size: .71rem;
+  font-weight: 700;
+  letter-spacing: .11em;
+  border-bottom-color: var(--museum-line-soft);
+}
+
+/* Forms: quiet surfaces, no glowing/outlined focus state. */
+body.museum .field input[type="password"],
+body.museum .field input[type="text"],
+body.museum .field input[type="number"],
+body.museum .vac-name-input,
+body.museum .setting-select,
+body.museum .vid-lang-select {
+  min-height: 44px;
+  border-radius: 3px;
+  border-color: var(--museum-line);
+  background: var(--surface);
+  box-shadow: none;
+}
+body.museum .field input:focus,
+body.museum .vac-name-input:focus,
+body.museum .setting-select:focus,
+body.museum .vid-lang-select:focus { border-color: var(--museum-line); }
+
+/* Video management becomes a clean media sheet. */
+body.museum #video-admin-grid { gap: 22px; }
+body.museum .vid-admin-card,
+body.museum .vid-admin-card:hover,
+body.museum .vid-admin-card.enabled,
+body.museum .vid-admin-card.enabled:hover {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  transform: none;
+}
+body.museum .vac-thumb {
+  border: 1px solid var(--museum-line-soft);
+  border-radius: 4px;
+}
+body.museum .vac-body { padding: 12px 2px 0; }
+body.museum .vac-toggle-row { min-height: 32px; }
+
+/* Appearance: use spacing/dividers instead of nested dashboard cards. */
+body.museum .appearance-layout {
+  grid-template-columns: minmax(300px, .95fr) minmax(420px, 1.2fr);
+  gap: clamp(34px, 4vw, 68px);
+  align-items: start;
+}
+body.museum .appearance-logo-card,
+body.museum .appearance-control-card,
+body.museum .security-card {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 0;
+}
+body.museum .appearance-controls { gap: 0; }
+body.museum .appearance-control-card {
+  padding: 0 0 26px;
+  margin: 0 0 26px;
+  border-bottom: 1px solid var(--museum-line-soft);
+}
+body.museum #logo-preview-box {
+  width: 100%;
+  max-width: 420px;
+  height: 210px;
+  border-radius: 4px;
+  border-color: var(--museum-line);
+}
+body.museum .view-mode-grid { gap: 10px; }
+body.museum .view-mode-option {
+  border-radius: 4px;
+  border-color: var(--museum-line);
+  background: var(--surface);
+  box-shadow: none;
+}
+body.museum .view-mode-option:hover { transform: none; border-color: var(--museum-line); }
+body.museum .view-mode-option.active {
+  background: var(--museum-active);
+  border-color: transparent;
+  box-shadow: none;
+}
+body.museum .view-mode-preview { opacity: .82; }
+
+/* Security remains intentionally restrained. */
+body.museum .security-card { max-width: 760px; }
+body.museum .pw-fields { max-width: none; }
+
+/* Video processing: table-like and operational. */
+body.museum .vp-guidance {
+  background: transparent;
+  border: 1px solid var(--museum-line);
+  border-radius: 4px;
+  box-shadow: none;
+}
+body.museum .vp-profile-section { padding: 0; background: transparent; border: 0; }
+body.museum .vp-profile-options { gap: 10px; }
+body.museum .vp-profile-choice {
+  border-radius: 4px;
+  border-color: var(--museum-line);
+  background: var(--surface);
+  box-shadow: none;
+}
+body.museum .vp-profile-card:hover .vp-profile-choice { transform: none; border-color: var(--museum-line); }
+body.museum .vp-profile-card > input:checked + .vp-profile-choice {
+  background: var(--museum-active);
+  border-color: transparent;
+  box-shadow: none;
+}
+body.museum .vp-profile-card > input:checked + .vp-profile-choice::before { display: none; }
+body.museum .vp-toolbar {
+  border-bottom: 1px solid var(--museum-line-soft);
+  padding-bottom: 14px;
+  margin-bottom: 0;
+}
+body.museum .vp-filter-btn {
+  border-radius: 3px;
+  border-color: transparent;
+  background: transparent;
+}
+body.museum .vp-filter-btn.active {
+  background: var(--surface2);
+  color: var(--text);
+  border-color: transparent;
+}
+body.museum .vp-list {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+body.museum .vp-row {
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--museum-line-soft);
+  border-radius: 0;
+  box-shadow: none;
+}
+body.museum .vp-row:hover { background: color-mix(in srgb, var(--text) 2.5%, transparent); }
+body.museum .vp-badge { border-radius: 3px; }
+body.museum .vp-processing-panel {
+  border-radius: 4px;
+  border-color: var(--museum-line);
+  box-shadow: 0 14px 32px rgba(0,0,0,.2);
+}
+
+/* About: editorial information rather than another settings card. */
+body.museum .about-card {
+  grid-template-columns: minmax(180px, 230px) minmax(0, 1fr);
+  padding: 0;
+  gap: clamp(30px, 4vw, 58px);
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+body.museum .about-name { font-weight: 650; letter-spacing: -.035em; }
+body.museum .about-meta-item {
+  border-radius: 3px;
+  border-color: var(--museum-line-soft);
+  background: transparent;
+}
+body.museum .about-support {
+  background: transparent;
+  border: 0;
+  border-top: 1px solid var(--museum-line-soft);
+  border-radius: 0;
+  padding: 28px 0 0;
+}
+body.museum .about-qr-card {
+  background: transparent;
+  border-radius: 3px;
+  border-color: var(--museum-line-soft);
+  box-shadow: none;
+}
+
+/* Authentication card: centered but not floating/glassy. */
+body.museum #admin-auth-wrap { background: var(--bg); }
+body.museum .auth-card {
+  border-radius: 5px;
+  border-color: var(--museum-line);
+  background: var(--bg);
+  box-shadow: none;
+}
+
+/* OSK: preserve the compact custom layouts; only remove glass effects. */
+body.museum #osk-overlay.osk-numeric,
+body.museum #osk-overlay.osk-text,
+body.museum #osk-container.hg-theme-default {
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+body.museum #osk-container.hg-theme-default,
+body.museum #osk-container .hg-button { border-radius: 4px; }
+
+@media (hover: hover) and (pointer: fine) {
+  body.museum .tile:hover,
+  body.museum .tile:hover .tile-thumb,
+  body.museum .tile:hover .tile-thumb img { transform: none; box-shadow: none; }
+}
+
+@media (max-width: 980px) {
+  body.museum .appearance-layout { grid-template-columns: 1fr; gap: 34px; }
+  body.museum .admin-main { padding-left: 28px; padding-right: 28px; }
+}
+
+@media (max-width: 760px) {
+  body.museum #main-header { height: 68px; padding: 0 20px; }
+  body.museum #tile-grid { padding: 22px 18px 34px; gap: 24px 16px; }
+  body.museum .tile-meta { padding-top: 8px; }
+  body.museum .about-card { grid-template-columns: 1fr; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body.museum *, body.museum *::before, body.museum *::after {
+    animation-duration: .001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* In list views the thumbnail and metadata sit side-by-side, so keep
+   duration under the title instead of consuming horizontal space. */
+body.museum #tile-grid.view-list-comfort .tile-meta,
+body.museum #tile-grid.view-list-compact .tile-meta {
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 4px;
+}
+body.museum #tile-grid.view-list-comfort .tile-title,
+body.museum #tile-grid.view-list-compact .tile-title {
+  white-space: normal;
+}
+
+
+/* v9: list metadata stacks title + duration in list modes. */
+body.museum #tile-grid.view-list-comfort .tile-meta,
+body.museum #tile-grid.view-list-compact .tile-meta {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-auto-flow: row;
+  justify-items: start;
+  align-content: center;
+  gap: 4px;
+}
+body.museum #tile-grid.view-list-comfort .tile-title,
+body.museum #tile-grid.view-list-compact .tile-title,
+body.museum #tile-grid.view-list-comfort .tile-dur,
+body.museum #tile-grid.view-list-compact .tile-dur {
+  width: 100%;
+  min-width: 0;
+}
+body.museum #tile-grid.view-list-comfort .tile-dur,
+body.museum #tile-grid.view-list-compact .tile-dur {
+  display: block;
+  text-align: left;
+}

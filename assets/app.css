@@ -174,7 +174,7 @@ p[data-i18n="aboutSupportHelp"] {
 #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
 /* ═══════════════════════════════════════════════════════════════
-   SCREEN — MAIN
+   SCREEN - MAIN
    ═══════════════════════════════════════════════════════════════ */
 #main-header {
   flex-shrink: 0; height: var(--header-h);
@@ -192,7 +192,7 @@ p[data-i18n="aboutSupportHelp"] {
   white-space: nowrap; flex-shrink: 0;
 }
 
-/* Language switcher — visitor-facing, right of header */
+/* Language switcher - visitor-facing, right of header */
 #lang-switcher {
   flex-shrink: 0;
   margin-left: auto;
@@ -389,7 +389,7 @@ body.light #lang-select:hover {
   position: relative; width: 100%; aspect-ratio: 16 / 9;
   background: var(--surface2); overflow: hidden;
 }
-/* Shimmer placeholder — active until image loads */
+/* Shimmer placeholder - active until image loads */
 .tile-loader {
   position: absolute; inset: 0;
   background: linear-gradient(
@@ -442,7 +442,7 @@ body.light #lang-select:hover {
 .grid-message h2  { font-size: 1.15rem; font-weight: 700; color: var(--text); }
 .grid-message p   { font-size: 0.88rem; max-width: 400px; line-height: 1.6; }
 
-/* Admin gear — subtle corner affordance */
+/* Admin gear - subtle corner affordance */
 #admin-corner {
   position: fixed; bottom: 22px; right: 22px; z-index: 30;
   width: 40px; height: 40px; border-radius: 50%;
@@ -454,7 +454,7 @@ body.light #lang-select:hover {
 #admin-corner svg { width: 18px; height: 18px; fill: currentColor; pointer-events: none; }
 
 /* ═══════════════════════════════════════════════════════════════
-   SCREEN — PLAYER
+   SCREEN - PLAYER
    ═══════════════════════════════════════════════════════════════ */
 #screen-player { background: #000; position: fixed; inset: 0; }
 
@@ -466,7 +466,7 @@ body.light #lang-select:hover {
 /* HUD overlay */
 #player-hud { position: absolute; inset: 0; pointer-events: none; }
 
-/* Fadeable HUD children — opacity controlled by .hud-faded on #player-hud */
+/* Fadeable HUD children - opacity controlled by .hud-faded on #player-hud */
 .hud-fadeable        { transition: opacity 0.5s ease, visibility 0.5s ease; opacity: 1; visibility: visible; }
 #player-hud.hud-faded .hud-fadeable { opacity: 0; visibility: hidden; }
 
@@ -588,7 +588,7 @@ body.light #lang-select:hover {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   SCREEN — ADMIN
+   SCREEN - ADMIN
    ═══════════════════════════════════════════════════════════════ */
 #screen-admin { flex-direction: row; overflow: hidden; }
 
@@ -648,7 +648,7 @@ body.light #lang-select:hover {
   padding: 44px 56px 80px;
 }
 
-/* Global scan button — top-right of admin content area */
+/* Global scan button - top-right of admin content area */
 .admin-topbar {
   display: flex; justify-content: flex-end;
   margin-bottom: 20px;
@@ -1183,7 +1183,7 @@ body.light #logo-preview-box {
   opacity: 0.82;
 }
 /* ═══════════════════════════════════════════════════════════════
-   VIDEO PROCESSING — v2
+   VIDEO PROCESSING - v2
    ═══════════════════════════════════════════════════════════════ */
 .vp-page-heading { display:flex; align-items:flex-start; justify-content:space-between; gap:24px; margin-bottom:24px; }
 .vp-page-heading .sec-title { margin-bottom:6px; }
@@ -1238,7 +1238,7 @@ body.light #logo-preview-box {
 @media (max-width:900px) { .vp-summary-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.vp-row{grid-template-columns:42px minmax(0,1fr)}.vp-action-cell{grid-column:2;text-align:left;padding:0 8px 14px}.vp-toolbar,.vp-page-heading{align-items:stretch;flex-direction:column}.vp-lang-filter{width:100%;max-width:none}.vp-selection-bar{align-items:stretch;flex-direction:column}.vp-selection-bar .btn{justify-content:center} }
 
 /* ═══════════════════════════════════════════════════════════════
-   UI / RESPONSIVENESS POLISH — v3
+   UI / RESPONSIVENESS POLISH - v3
    Keeps the existing markup and theme variables intact.
    ═══════════════════════════════════════════════════════════════ */
 :root {
@@ -1727,7 +1727,7 @@ body.light #admin-corner {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   ADMIN WORKFLOW CLEANUP — v4
+   ADMIN WORKFLOW CLEANUP - v4
    Simpler video management and processing choices.
    ═══════════════════════════════════════════════════════════════ */
 .video-admin-toolbar {
@@ -1848,7 +1848,7 @@ body.light #admin-corner {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   ADMIN / PROCESSING REFINEMENT — v5
+   ADMIN / PROCESSING REFINEMENT - v5
    Cleaner touch-first states and denser media information.
    ═══════════════════════════════════════════════════════════════ */
 
@@ -2040,7 +2040,7 @@ body.light #admin-corner {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   ADMIN REFINEMENT — appearance + processing guidance
+   ADMIN REFINEMENT - appearance + processing guidance
    ═══════════════════════════════════════════════════════════════ */
 .logo-file-input {
   position: fixed;

@@ -13,13 +13,13 @@ if (-not (Test-Path $cs))  { Write-Error "Not found: $cs";  exit 1 }
 if (-not (Test-Path $ico)) { Write-Error "Not found: $ico"; exit 1 }
 if (-not (Test-Path $csc)) { Write-Error "csc.exe not found at $csc"; exit 1 }
 
-# ── Step 1: Compile (no icon — embedded properly in step 2) ───────────────────
+# ── Step 1: Compile (no icon - embedded properly in step 2) ───────────────────
 $output = & $csc /target:winexe /out:$out /r:System.Windows.Forms.dll $cs 2>&1
 $output | Where-Object { $_ -notmatch "^Microsoft|^for C#|^Copyright|^This compiler" }
 if (-not (Test-Path $out) -or $LASTEXITCODE -ne 0) { Write-Error "Compile failed."; exit 1 }
 
 # ── Step 2: Embed icon via Win32 UpdateResource ───────────────────────────────
-# Copies every frame byte-for-byte from the .ico — no resampling, no quality loss.
+# Copies every frame byte-for-byte from the .ico - no resampling, no quality loss.
 Add-Type @'
 using System; using System.Runtime.InteropServices;
 public class KioskResUpdater {

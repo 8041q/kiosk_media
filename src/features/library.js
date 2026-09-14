@@ -11,7 +11,12 @@ const activeProbeControls = new Map();
 let activeProbes = 0;
 let cachedCols = 1;
 let cachedGridWidth = -1;
-const META_CONCURRENCY = 3;
+const META_CONCURRENCY = 2;
+const META_DB_NAME = 'kiosk-media-meta-v1';
+const META_STORE = 'media-meta';
+const cacheSignatures = new Map();
+const persistentLookups = new Map();
+let metaDbPromise = null;
 const visibleMetaTasks = new WeakMap();
 const metaVisibilityObserver = typeof IntersectionObserver !== 'undefined'
   ? new IntersectionObserver(entries => {
@@ -22,7 +27,7 @@ const metaVisibilityObserver = typeof IntersectionObserver !== 'undefined'
         entry.target.removeAttribute('data-meta-pending');
         if (task) { visibleMetaTasks.delete(entry.target); task(); }
       }
-    }, { rootMargin: '520px 0px', threshold: 0.01 })
+    }, { rootMargin: '320px 0px', threshold: 0.01 })
   : null;
 
 function normalizeServerCatalog(data) {
@@ -35,9 +40,106 @@ function normalizeServerCatalog(data) {
       name: item.name || decodeURIComponent(String(item.src).split('/').pop()),
       title: item.title || videoTitle(item.name || String(item.src).split('/').pop()),
       language: code,
+      size: Number(item.size) || 0,
+      modifiedAt: item.modifiedAt || '',
     }));
   }
   return result;
+}
+
+
+function metaSignature(record) {
+  return `${record.src}|${Number(record.size) || 0}|${record.modifiedAt || ''}`;
+}
+
+function openMetaDb() {
+  if (metaDbPromise) return metaDbPromise;
+  if (typeof indexedDB === 'undefined') return Promise.resolve(null);
+  metaDbPromise = new Promise(resolve => {
+    let request;
+    try { request = indexedDB.open(META_DB_NAME, 1); }
+    catch (_) { resolve(null); return; }
+    request.onupgradeneeded = () => {
+      const db = request.result;
+      if (!db.objectStoreNames.contains(META_STORE)) db.createObjectStore(META_STORE, { keyPath: 'key' });
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => resolve(null);
+    request.onblocked = () => resolve(null);
+  });
+  return metaDbPromise;
+}
+
+async function readPersistentMeta(record) {
+  const key = metaSignature(record);
+  if (persistentLookups.has(key)) return persistentLookups.get(key);
+  const lookup = (async () => {
+    const db = await openMetaDb();
+    if (!db) return null;
+    return new Promise(resolve => {
+      try {
+        const tx = db.transaction(META_STORE, 'readonly');
+        const req = tx.objectStore(META_STORE).get(key);
+        req.onsuccess = () => resolve(req.result || null);
+        req.onerror = () => resolve(null);
+      } catch (_) { resolve(null); }
+    });
+  })();
+  persistentLookups.set(key, lookup);
+  lookup.finally(() => persistentLookups.delete(key));
+  return lookup;
+}
+
+async function writePersistentMeta(record, thumb, duration) {
+  const db = await openMetaDb();
+  if (!db) return;
+  const payload = {
+    key: metaSignature(record),
+    src: record.src,
+    thumb: thumb || null,
+    duration: Number.isFinite(duration) ? duration : 0,
+    savedAt: Date.now(),
+  };
+  await new Promise(resolve => {
+    try {
+      const tx = db.transaction(META_STORE, 'readwrite');
+      tx.objectStore(META_STORE).put(payload);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => resolve();
+      tx.onabort = () => resolve();
+    } catch (_) { resolve(); }
+  });
+}
+
+function schedulePersistentCacheCleanup(records) {
+  const valid = new Set(records.map(metaSignature));
+  const run = async () => {
+    const db = await openMetaDb();
+    if (!db) return;
+    try {
+      const tx = db.transaction(META_STORE, 'readwrite');
+      const store = tx.objectStore(META_STORE);
+      const req = store.openCursor();
+      req.onsuccess = () => {
+        const cursor = req.result;
+        if (!cursor) return;
+        if (!valid.has(cursor.key)) cursor.delete();
+        cursor.continue();
+      };
+    } catch (_) {}
+  };
+  if (typeof requestIdleCallback === 'function') requestIdleCallback(() => run(), { timeout: 2500 });
+  else setTimeout(run, 1200);
+}
+
+function resetStaleMemoryEntry(record) {
+  const src = record.src;
+  const signature = metaSignature(record);
+  if (cacheSignatures.has(src) && cacheSignatures.get(src) !== signature) {
+    thumbCache.delete(src);
+    durationCache.delete(src);
+  }
+  cacheSignatures.set(src, signature);
 }
 
 function ensureSelectionDefaults() {
@@ -51,7 +153,9 @@ function ensureSelectionDefaults() {
 
 export async function refreshCatalog({ toast = false } = {}) {
   const data = await apiFetch('/api/catalog');
-  setCatalog(normalizeServerCatalog(data));
+  const normalized = normalizeServerCatalog(data);
+  setCatalog(normalized);
+  schedulePersistentCacheCleanup(Object.values(normalized).flat());
   ensureSelectionDefaults();
   setActiveCatalogLanguage(cfg.language);
   renderLanguageSwitcher();
@@ -121,6 +225,8 @@ function abortProbe(src) {
 
 export function queueMeta(record, onThumb, onDuration = () => {}) {
   const src = record.src;
+  resetStaleMemoryEntry(record);
+
   if (thumbCache.has(src) && durationCache.has(src)) {
     onThumb(thumbCache.get(src));
     onDuration(durationCache.get(src));
@@ -128,14 +234,40 @@ export function queueMeta(record, onThumb, onDuration = () => {}) {
   }
 
   let job = metaJobs.get(src);
-  if (!job) {
-    job = { record, listeners: [], duration: durationCache.get(src) };
-    metaJobs.set(src, job);
-    metaQueue.push(job);
+  if (job) {
+    job.listeners.push({ onThumb, onDuration });
+    if (job.duration != null) onDuration(job.duration);
+    return;
   }
-  job.listeners.push({ onThumb, onDuration });
-  if (job.duration != null) onDuration(job.duration);
-  drainMeta();
+
+  job = { record, listeners: [{ onThumb, onDuration }], duration: durationCache.get(src), queued: false };
+  metaJobs.set(src, job);
+
+  readPersistentMeta(record).then(cached => {
+    if (metaJobs.get(src) !== job) return;
+    if (cached) {
+      const duration = Number(cached.duration) || 0;
+      thumbCache.set(src, cached.thumb || null);
+      durationCache.set(src, duration);
+      job.listeners.forEach(listener => {
+        listener.onThumb(cached.thumb || null);
+        listener.onDuration(duration);
+      });
+      job.listeners.length = 0;
+      metaJobs.delete(src);
+      return;
+    }
+    if (!job.queued) {
+      job.queued = true;
+      metaQueue.push(job);
+      drainMeta();
+    }
+  }).catch(() => {
+    if (metaJobs.get(src) !== job || job.queued) return;
+    job.queued = true;
+    metaQueue.push(job);
+    drainMeta();
+  });
 }
 
 function drainMeta() {
@@ -178,6 +310,8 @@ function runMeta(job) {
       if (cache) {
         thumbCache.set(src, thumb);
         if (!durationCache.has(src)) durationCache.set(src, 0);
+        const duration = durationCache.get(src) || 0;
+        writePersistentMeta(record, thumb, duration).catch(() => {});
       }
       if (metaJobs.get(src) === job) metaJobs.delete(src);
       if (notify) job.listeners.forEach(({ onThumb }) => onThumb(thumb));
@@ -279,7 +413,7 @@ export function renderMainScreen() {
     const durationEl = tile.querySelector('.tile-dur');
     queueMetaVisible(tile, video, url => bindThumbImage(img, loader, url), secs => {
       const text = formatDuration(secs);
-      if (text !== '—') { badge.textContent = text; durationEl.textContent = text; }
+      if (text !== '-') { badge.textContent = text; durationEl.textContent = text; }
     });
   });
   grid.appendChild(fragment);

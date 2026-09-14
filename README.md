@@ -1,4 +1,4 @@
-# Exhibition Kiosk — UI + Performance Patch
+# Exhibition Kiosk - UI + Performance Patch
 
 This folder is an **overlay patch** for the existing kiosk project. It preserves the current HTML/JS architecture and backend API paths while updating the front-end files that were provided.
 
