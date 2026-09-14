@@ -4,6 +4,7 @@ import { focusLibraryTile } from './library.js';
 
 let hudTimer = null;
 let idleTimer = null;
+let scrubbing = false;
 
 function clearHudTimer() { clearTimeout(hudTimer); hudTimer = null; }
 function clearIdleTimer() { clearTimeout(idleTimer); idleTimer = null; }
@@ -14,15 +15,77 @@ function hudActivity() {
   hud.classList.remove('hud-faded');
   clearHudTimer();
   const v = $('player-video');
-  if (v && !v.paused && !v.ended) hudTimer = setTimeout(() => hud.classList.add('hud-faded'), HUD_FADE_MS);
+  if (v && !v.paused && !v.ended && !scrubbing) hudTimer = setTimeout(() => hud.classList.add('hud-faded'), HUD_FADE_MS);
 }
 
 function startIdleTimer() { clearIdleTimer(); idleTimer = setTimeout(leavePlayer, IDLE_TIMEOUT_MS); }
-function startHudTimer() { clearHudTimer(); hudTimer = setTimeout(() => $('player-hud')?.classList.add('hud-faded'), HUD_FADE_MS); }
+function startHudTimer() {
+  clearHudTimer();
+  if (!scrubbing) hudTimer = setTimeout(() => $('player-hud')?.classList.add('hud-faded'), HUD_FADE_MS);
+}
+
+function formatPlayerTime(seconds) {
+  if (!Number.isFinite(seconds) || seconds < 0) return '0:00';
+  const total = Math.floor(seconds);
+  const hours = Math.floor(total / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
+  const secs = total % 60;
+  return hours > 0
+    ? `${hours}:${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`
+    : `${minutes}:${String(secs).padStart(2, '0')}`;
+}
+
+function ensurePlayerProgress() {
+  const hud = $('player-hud');
+  if (!hud || $('player-progress-wrap')) return;
+
+  const wrap = document.createElement('div');
+  wrap.id = 'player-progress-wrap';
+  wrap.className = 'hud-fadeable';
+  wrap.innerHTML = `
+    <div class="player-progress-heading">
+      <div id="player-now-title" title=""></div>
+      <div class="player-time-readout" aria-hidden="true">
+        <span id="player-time-current">0:00</span>
+        <span class="player-time-separator">/</span>
+        <span id="player-time-duration">0:00</span>
+      </div>
+    </div>
+    <input id="player-seek" type="range" min="0" max="1000" step="1" value="0" aria-label="Video progress" style="--seek-pct:0%;--buffer-pct:0%" />`;
+  hud.appendChild(wrap);
+}
+
+function updateBufferedUI(v) {
+  const seek = $('player-seek');
+  if (!seek || !Number.isFinite(v.duration) || v.duration <= 0 || !v.buffered?.length) {
+    seek?.style.setProperty('--buffer-pct', '0%');
+    return;
+  }
+  let furthest = 0;
+  for (let i = 0; i < v.buffered.length; i += 1) furthest = Math.max(furthest, v.buffered.end(i));
+  const pct = Math.max(0, Math.min(100, (furthest / v.duration) * 100));
+  seek.style.setProperty('--buffer-pct', `${pct}%`);
+}
+
+function updateProgressUI() {
+  const v = $('player-video');
+  const seek = $('player-seek');
+  if (!v || !seek) return;
+  const duration = Number.isFinite(v.duration) && v.duration > 0 ? v.duration : 0;
+  const current = Math.max(0, Number.isFinite(v.currentTime) ? v.currentTime : 0);
+  const ratio = duration ? Math.min(1, current / duration) : 0;
+  seek.value = String(Math.round(ratio * 1000));
+  seek.disabled = !duration;
+  seek.style.setProperty('--seek-pct', `${ratio * 100}%`);
+  if ($('player-time-current')) $('player-time-current').textContent = formatPlayerTime(current);
+  if ($('player-time-duration')) $('player-time-duration').textContent = formatPlayerTime(duration);
+  updateBufferedUI(v);
+}
 
 function updateVolUI(value) {
   const pct = Math.round(value * 100);
-  const slider = $('player-vol'); if (slider) { slider.value = String(value); slider.style.setProperty('--vol-pct', `${pct}%`); }
+  const slider = $('player-vol');
+  if (slider) { slider.value = String(value); slider.style.setProperty('--vol-pct', `${pct}%`); }
   if ($('player-vol-pct')) $('player-vol-pct').textContent = `${pct}%`;
   const path = document.getElementById('vol-icon-path'); if (!path) return;
   path.setAttribute('d', value === 0
@@ -35,7 +98,9 @@ function updateVolUI(value) {
 function syncPlayButton() {
   const v = $('player-video'); const btn = $('player-play-toggle'); if (!v || !btn) return;
   const paused = v.paused;
-  btn.innerHTML = paused ? '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>' : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h4v14H7zm6 0h4v14h-4z"/></svg>';
+  btn.innerHTML = paused
+    ? '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>'
+    : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h4v14H7zm6 0h4v14h-4z"/></svg>';
   btn.setAttribute('aria-label', paused ? 'Play video' : 'Pause video');
 }
 
@@ -48,7 +113,8 @@ function togglePlayback() {
 function seek(delta) {
   const v = $('player-video'); if (!v) return;
   const max = Number.isFinite(v.duration) ? v.duration : Math.max(v.currentTime + Math.abs(delta), 0);
-  v.currentTime = Math.max(0, Math.min(max, v.currentTime + delta)); hudActivity();
+  v.currentTime = Math.max(0, Math.min(max, v.currentTime + delta));
+  updateProgressUI(); hudActivity();
 }
 
 function refocus() { requestAnimationFrame(() => $('screen-player')?.focus({ preventScroll: true })); }
@@ -57,7 +123,11 @@ function cleanupVideo() {
   const v = $('player-video'); if (!v) return;
   v.pause(); v.removeAttribute('src'); v.load();
   $('player-error')?.classList.remove('active'); $('player-spinner')?.classList.remove('active');
-  clearIdleTimer(); clearHudTimer();
+  clearIdleTimer(); clearHudTimer(); scrubbing = false;
+  if ($('player-now-title')) { $('player-now-title').textContent = ''; $('player-now-title').removeAttribute('title'); }
+  if ($('player-seek')) { $('player-seek').value = '0'; $('player-seek').style.setProperty('--seek-pct', '0%'); $('player-seek').style.setProperty('--buffer-pct', '0%'); }
+  if ($('player-time-current')) $('player-time-current').textContent = '0:00';
+  if ($('player-time-duration')) $('player-time-duration').textContent = '0:00';
 }
 
 function leavePlayer() {
@@ -68,6 +138,11 @@ function openVideo(record, tileIdx) {
   ui.lastTileIdx = tileIdx; ui.currentVideoId = record.id;
   const v = $('player-video');
   $('player-error')?.classList.remove('active'); $('player-spinner')?.classList.add('active'); $('player-hud')?.classList.remove('hud-faded');
+  const title = record.title || record.name || '';
+  if ($('player-now-title')) { $('player-now-title').textContent = title; $('player-now-title').title = title; }
+  if ($('player-seek')) { $('player-seek').value = '0'; $('player-seek').disabled = true; $('player-seek').style.setProperty('--seek-pct', '0%'); }
+  if ($('player-time-current')) $('player-time-current').textContent = '0:00';
+  if ($('player-time-duration')) $('player-time-duration').textContent = '0:00';
   const vol = Math.max(0, Math.min(1, cfg.videoVolumes[record.id] ?? 1));
   v.muted = false; v.volume = vol; updateVolUI(vol); v.src = record.src;
   showScreen('player'); refocus(); syncPlayButton();
@@ -76,17 +151,27 @@ function openVideo(record, tileIdx) {
 
 export function initPlayer() {
   const v = $('player-video'); const screen = $('screen-player'); if (!v || !screen) return;
+  ensurePlayerProgress();
+  const seekBar = $('player-seek');
+
   window.addEventListener('kiosk:play-video', e => openVideo(e.detail.record, e.detail.tileIdx));
   window.addEventListener('kiosk:screenchange', e => { if (e.detail.name !== 'player' && v.getAttribute('src')) cleanupVideo(); });
   v.addEventListener('enterpictureinpicture', () => document.exitPictureInPicture?.().catch(() => {}));
   document.addEventListener('contextmenu', e => e.preventDefault());
   v.addEventListener('canplay', () => $('player-spinner')?.classList.remove('active'));
   v.addEventListener('waiting', () => $('player-spinner')?.classList.add('active'));
+  v.addEventListener('loadedmetadata', updateProgressUI);
+  v.addEventListener('durationchange', updateProgressUI);
+  v.addEventListener('timeupdate', updateProgressUI);
+  v.addEventListener('progress', () => updateBufferedUI(v));
   v.addEventListener('playing', () => { $('player-spinner')?.classList.remove('active'); clearIdleTimer(); startHudTimer(); syncPlayButton(); });
   v.addEventListener('pause', () => { if (ui.activeScreen === 'player') { hudActivity(); startIdleTimer(); } syncPlayButton(); });
   v.addEventListener('ended', leavePlayer);
   v.addEventListener('error', () => { $('player-spinner')?.classList.remove('active'); $('player-error')?.classList.add('active'); clearIdleTimer(); });
-  screen.addEventListener('mousemove', hudActivity, { passive: true }); screen.addEventListener('touchstart', hudActivity, { passive: true });
+
+  screen.addEventListener('mousemove', hudActivity, { passive: true });
+  screen.addEventListener('touchstart', hudActivity, { passive: true });
+  screen.addEventListener('pointerdown', hudActivity, { passive: true });
   screen.addEventListener('keydown', e => {
     hudActivity();
     switch (e.key) {
@@ -94,14 +179,30 @@ export function initPlayer() {
       case ' ': case 'Enter': case 'NumpadEnter': case 'MediaPlayPause': e.preventDefault(); togglePlayback(); break;
       case 'ArrowLeft': case 'MediaRewind': e.preventDefault(); seek(-SEEK_STEP_SECONDS); break;
       case 'ArrowRight': case 'MediaFastForward': e.preventDefault(); seek(SEEK_STEP_SECONDS); break;
+      case 'Home': e.preventDefault(); if (Number.isFinite(v.duration)) { v.currentTime = 0; updateProgressUI(); } break;
+      case 'End': e.preventDefault(); if (Number.isFinite(v.duration)) { v.currentTime = Math.max(0, v.duration - 0.1); updateProgressUI(); } break;
       case 'ArrowUp': e.preventDefault(); v.muted = false; v.volume = Math.min(1, v.volume + 0.05); updateVolUI(v.volume); cfg.videoVolumes[ui.currentVideoId] = v.volume; saveSettingsSoon(); break;
       case 'ArrowDown': e.preventDefault(); v.muted = false; v.volume = Math.max(0, v.volume - 0.05); updateVolUI(v.volume); cfg.videoVolumes[ui.currentVideoId] = v.volume; saveSettingsSoon(); break;
     }
   });
+
+  seekBar?.addEventListener('pointerdown', () => { scrubbing = true; hudActivity(); });
+  seekBar?.addEventListener('input', e => {
+    if (!Number.isFinite(v.duration) || v.duration <= 0) return;
+    const ratio = Math.max(0, Math.min(1, Number(e.target.value) / 1000));
+    v.currentTime = ratio * v.duration;
+    updateProgressUI(); hudActivity();
+  });
+  const endScrub = () => { scrubbing = false; hudActivity(); if (!v.paused && !v.ended) startHudTimer(); };
+  seekBar?.addEventListener('pointerup', endScrub);
+  seekBar?.addEventListener('pointercancel', endScrub);
+  seekBar?.addEventListener('change', endScrub);
+
   $('player-vol')?.addEventListener('input', e => { const value = Number(e.target.value); v.muted = false; v.volume = value; updateVolUI(value); if (ui.currentVideoId) { cfg.videoVolumes[ui.currentVideoId] = value; saveSettingsSoon(); } hudActivity(); });
   $('player-vol-icon')?.addEventListener('click', () => { v.muted = !v.muted; updateVolUI(v.muted ? 0 : v.volume); hudActivity(); refocus(); });
   $('player-play-toggle')?.addEventListener('click', () => { togglePlayback(); refocus(); });
   $('player-rewind')?.addEventListener('click', () => { seek(-SEEK_STEP_SECONDS); refocus(); });
   $('player-forward')?.addEventListener('click', () => { seek(SEEK_STEP_SECONDS); refocus(); });
-  $('player-back')?.addEventListener('click', leavePlayer); $('player-err-btn')?.addEventListener('click', leavePlayer);
+  $('player-back')?.addEventListener('click', leavePlayer);
+  $('player-err-btn')?.addEventListener('click', leavePlayer);
 }

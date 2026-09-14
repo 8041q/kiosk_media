@@ -3,8 +3,8 @@ import { $, applyAccent, applyTheme, applyViewMode, applyLogo, refreshAboutPanel
 import { setLanguage, applyI18n } from './core/i18n.js';
 import { refreshCatalog, renderMainScreen, renderLanguageSwitcher, closeLangMenu } from './features/library.js';
 import { initPlayer } from './features/player.js';
-import { initKeyboard, forceNumericValue } from './features/keyboard.js?v=20260914-2';
-import { initAdmin } from './features/admin.js?v=20260914-2';
+import { initKeyboard, forceNumericValue } from './features/keyboard.js';
+import { initAdmin } from './features/admin.js';
 import { initVideoProcessing } from './features/video-processing.js';
 
 async function boot() {
